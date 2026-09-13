@@ -9,6 +9,7 @@ export default defineConfig({
 
   lint: {
     ignorePatterns: [
+      "**/next-env.d.ts",
       "**/node_modules/**",
       "**/dist/**",
       "**/.cache/**",
