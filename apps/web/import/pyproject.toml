@@ -1,0 +1,7 @@
+[project]
+name = "piano-import"
+version = "0.1.0"
+description = "YouTube audio to MIDI for the piano app: yt-dlp, ffmpeg, transkun"
+requires-python = ">=3.12,<3.13"
+# transkun imports pkg_resources, which setuptools 81 removed.
+dependencies = ["transkun==2.0.1", "setuptools<81"]
