@@ -5,11 +5,15 @@ import type { Scale } from "@/lib/analysis/scale";
 import { barOfBeat, type Grid } from "@/lib/grid";
 import type { Hand } from "@/lib/notes";
 import type { BeatNote, Engine } from "./engine";
-import { FIRST_KEY, isBlack, keyboardLayout, LAST_KEY } from "./keyboard-layout";
+import { FIRST_KEY, keyboardLayout, LAST_KEY } from "./keyboard-layout";
 import { usePlayer } from "./store";
 
+// Hand colours. Notes on black keys use the darker shade so a narrow bar
+// reads as a black key even when it is short.
 const LEFT_COLOR = "#4f7be8";
+const LEFT_COLOR_BLACK_KEY = "#2d55b5";
 const RIGHT_COLOR = "#7fd97f";
+const RIGHT_COLOR_BLACK_KEY = "#46a24a";
 const KEYBOARD_HEIGHT = 72;
 const VISIBLE_BEATS = 8;
 // Gap at the end of every note so repeated notes read as two.
@@ -116,24 +120,20 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
           hitY - (beat + note.durationBeats - position) * pxPerBeat + NOTE_GAP_PX,
         );
         if (bottom <= top) return;
-        context.fillStyle = note.hand === "left" ? LEFT_COLOR : RIGHT_COLOR;
-        context.fillRect(key.x + 1, top, key.width - 2, bottom - top);
+        context.fillStyle = noteColor(note.hand, key.black);
+        context.fillRect(key.noteX + 1, top, key.noteWidth - 2, bottom - top);
         if (beat <= position && position < beat + note.durationBeats)
           sounding.set(note.midi, note.hand);
       };
-      // Black-key notes are narrow and sit inside the white columns, so they are
-      // drawn after the white-key notes to stay visible.
-      for (const blackPass of [false, true]) {
-        for (const note of notes) {
-          if (muted[note.hand] || isBlack(note.midi) !== blackPass) continue;
-          if (inLoop && loop && loopStart !== null) {
-            if (note.beat < loop.fromBeat || note.beat >= loop.toBeat) continue;
-            const cycle = loop.toBeat - loopStart;
-            for (let shift = 0; note.beat + shift <= to; shift += cycle) drawNote(note, shift);
-          } else {
-            if (note.beat > to) break;
-            drawNote(note, 0);
-          }
+      for (const note of notes) {
+        if (muted[note.hand]) continue;
+        if (inLoop && loop && loopStart !== null) {
+          if (note.beat < loop.fromBeat || note.beat >= loop.toBeat) continue;
+          const cycle = loop.toBeat - loopStart;
+          for (let shift = 0; note.beat + shift <= to; shift += cycle) drawNote(note, shift);
+        } else {
+          if (note.beat > to) break;
+          drawNote(note, 0);
         }
       }
 
@@ -173,6 +173,11 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
       <canvas ref={canvasRef} aria-label={`Fallende Noten, Tasten ${FIRST_KEY} bis ${LAST_KEY}`} />
     </div>
   );
+}
+
+function noteColor(hand: Hand, blackKey: boolean): string {
+  if (hand === "left") return blackKey ? LEFT_COLOR_BLACK_KEY : LEFT_COLOR;
+  return blackKey ? RIGHT_COLOR_BLACK_KEY : RIGHT_COLOR;
 }
 
 function keyColor(hand: Hand | undefined, base: string): string {
