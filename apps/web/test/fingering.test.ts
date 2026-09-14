@@ -37,6 +37,24 @@ describe("assignFingering", () => {
     expect(assignFingering(left)).toEqual([5, 3, 1]);
   });
 
+  test("a held bass note keeps its finger: D minor broken chord in the left hand is 5 2 1", () => {
+    const notes: Note[] = [
+      { time: 0, duration: 2, midi: 38, velocity: 0.8, hand: "left" },
+      { time: 0.5, duration: 0.5, midi: 45, velocity: 0.8, hand: "left" },
+      { time: 1, duration: 0.5, midi: 50, velocity: 0.8, hand: "left" },
+    ];
+    expect(assignFingering(notes)).toEqual([5, 2, 1]);
+  });
+
+  test("a jump beyond the hand span is a position change, not impossible", () => {
+    // Left hand: low E2 held, then B3 far above, then back to C2.
+    const notes = melody("left", [40, 59, 36]);
+    const fingers = assignFingering(notes);
+    expect(fingers[0]).toBe(5);
+    expect(fingers[1]).toBe(1);
+    expect(fingers[2]).toBe(5);
+  });
+
   test("hands are fingered independently and stay aligned with the input", () => {
     const notes: Note[] = [
       { time: 0, duration: 0.4, midi: 48, velocity: 0.8, hand: "left" },
