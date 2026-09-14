@@ -108,8 +108,13 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
         if (beat > to || beat + note.durationBeats < position) return;
         const key = keyByMidi.get(note.midi);
         if (!key) return;
+        // The note keeps falling while it sounds: its top follows the release
+        // time, only the part below the hit line is cut off.
         const bottom = Math.min(hitY, hitY - (beat - position) * pxPerBeat);
-        const top = Math.max(0, bottom - note.durationBeats * pxPerBeat + NOTE_GAP_PX);
+        const top = Math.max(
+          0,
+          hitY - (beat + note.durationBeats - position) * pxPerBeat + NOTE_GAP_PX,
+        );
         if (bottom <= top) return;
         context.fillStyle = note.hand === "left" ? LEFT_COLOR : RIGHT_COLOR;
         context.fillRect(key.noteX + 1, top, key.noteWidth - 2, bottom - top);
