@@ -17,6 +17,7 @@ describe("fingerprints", () => {
     const notes = assignHands(parsed, detectHands(parsed));
     const totalBars = countBars(grid, notes);
     expect(totalBars).toBe(34);
+    expect(scaleName(detectScale(notes))).toBe("C dorisch");
     const { all } = fingerprintBars(grid, notes, totalBars);
     const groups: string[] = [];
     for (let b = 0; b < totalBars; b += 4) groups.push(all.slice(b, b + 4).join(""));
