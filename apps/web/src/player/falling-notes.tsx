@@ -11,9 +11,9 @@ import { usePlayer } from "./store";
 // Hand colours. Notes on black keys use the darker shade so a narrow bar
 // reads as a black key even when it is short.
 const LEFT_COLOR = "#4f7be8";
-const LEFT_COLOR_BLACK_KEY = "#2d55b5";
+const LEFT_COLOR_BLACK_KEY = "#1f3f8f";
 const RIGHT_COLOR = "#7fd97f";
-const RIGHT_COLOR_BLACK_KEY = "#46a24a";
+const RIGHT_COLOR_BLACK_KEY = "#2f7f34";
 const KEYBOARD_HEIGHT = 72;
 const VISIBLE_BEATS = 8;
 // Gap at the end of every note so repeated notes read as two.
