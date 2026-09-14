@@ -42,7 +42,7 @@ export function Player({ initialSong }: { initialSong: Song }) {
   // Everything derived from notes and grid. Recomputed when a correction field changes.
   const derived = useMemo(() => {
     if (!parsed) return null;
-    const notes = assignHands(parsed, song.hands);
+    const notes = assignHands(parsed, song.hands, song);
     const analysis = analyseNotes(song, notes);
     const parts = effectiveParts(song.parts, analysis.totalBars);
     const blocks = parts.flatMap((part, i) => blocksOfPart(part, i));

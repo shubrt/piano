@@ -33,7 +33,11 @@ describe("detectTempo", () => {
 describe("detectTempo on the test files", () => {
   test("Ancient Stones without tempo event is 120", () => {
     const parsed = loadTestMidi("ancient-stones");
-    const notes = assignHands(parsed, { type: "tracks" });
+    const notes = assignHands(
+      parsed,
+      { type: "tracks" },
+      { bpm: 120, beatsPerBar: 3, offsetSec: 0 },
+    );
     const result = detectTempo(notes.map((n) => n.time));
     expect(result.bpm).toBe(120);
     expect(result.offsetSec).toBeCloseTo(0, 6);
@@ -41,7 +45,11 @@ describe("detectTempo on the test files", () => {
 
   test("Secunda onsets alone give the 88 of its tempo event", () => {
     const parsed = loadTestMidi("secunda");
-    const notes = assignHands(parsed, { type: "split", splitPitch: 67 });
+    const notes = assignHands(
+      parsed,
+      { type: "split", splitPitch: 67 },
+      { bpm: 88, beatsPerBar: 3, offsetSec: 0 },
+    );
     expect(detectTempo(notes.map((n) => n.time)).bpm).toBe(88);
   });
 });

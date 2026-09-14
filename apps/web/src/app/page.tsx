@@ -17,7 +17,7 @@ async function loadRows(): Promise<Row[]> {
   const songs = await listSongs();
   return Promise.all(
     songs.map(async (song) => {
-      const notes = assignHands(parseMidi(await readMidi(song.id)), song.hands);
+      const notes = assignHands(parseMidi(await readMidi(song.id)), song.hands, song);
       const analysis = analyseNotes(song, notes);
       return { song, scale: scaleName(analysis.scale), bars: analysis.totalBars };
     }),

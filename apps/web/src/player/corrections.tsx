@@ -9,7 +9,7 @@ type Props = {
   onReanalyze: () => Promise<void>;
 };
 
-// BPM, time signature, offset and split pitch. Every change moves the grid at
+// BPM, time signature, offset and split pitch (empty = automatic). Every change moves the grid at
 // once and is saved. "Struktur neu" asks the model again with that grid.
 export function Corrections({ song, onPatch, onReanalyze }: Props) {
   const [busy, setBusy] = useState(false);
@@ -67,22 +67,22 @@ export function Corrections({ song, onPatch, onReanalyze }: Props) {
         />
         s
       </label>
-      {song.hands.type === "split" ? (
-        <label>
+      {song.hands.type !== "tracks" ? (
+        <label title="Leer lassen für die automatische Trennung pro Takt">
           Split
           <input
             type="number"
             min="21"
             max="108"
-            defaultValue={song.hands.splitPitch}
-            key={`split-${song.hands.splitPitch}`}
+            placeholder="auto"
+            defaultValue={song.hands.type === "split" ? song.hands.splitPitch : ""}
+            key={`split-${song.hands.type === "split" ? song.hands.splitPitch : "auto"}`}
             onBlur={(e) => {
               const splitPitch = number(e.target.value);
-              if (
-                splitPitch !== null &&
-                song.hands.type === "split" &&
-                splitPitch !== song.hands.splitPitch
-              ) {
+              const current = song.hands.type === "split" ? song.hands.splitPitch : null;
+              if (e.target.value.trim() === "" && current !== null)
+                void onPatch({ hands: { type: "auto" } });
+              else if (splitPitch !== null && Math.round(splitPitch) !== current) {
                 void onPatch({ hands: { type: "split", splitPitch: Math.round(splitPitch) } });
               }
             }}
