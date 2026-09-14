@@ -23,6 +23,9 @@ const NOTE_GAP_PX = 3;
 const NOTE_RADIUS_PX = 6;
 const NOTE_WIDTH_RATIO = 0.8;
 const GLOSS_LIGHTEN = 0.3;
+// Finger numbers sit at the bottom of the bar, where it meets the keys first.
+const FINGER_FONT_PX = 11;
+const FINGER_MIN_BAR_PX = 16;
 // Keys in the scale look like a normal keyboard, the rest are grey.
 const WHITE_KEY = "#f2f2f2";
 const WHITE_KEY_OFF = "#7a7a7a";
@@ -74,6 +77,7 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
       const muted = engine.muted;
       const loop = engine.loop;
       const loopStart = engine.loopStart();
+      const showFingers = usePlayer.getState().fingering;
       const inLoop =
         loop !== null && loopStart !== null && position >= loopStart && position < loop.toBeat;
 
@@ -139,6 +143,19 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
         context.beginPath();
         context.roundRect(x, top, w, h, radius);
         context.fill();
+        // The digit stays on the hit line while the note sounds.
+        const visibleBottom = Math.min(bottom, hitY);
+        if (
+          showFingers &&
+          note.finger !== undefined &&
+          visibleBottom - Math.max(top, 0) >= FINGER_MIN_BAR_PX
+        ) {
+          context.fillStyle = key.black ? "#fff" : "#000";
+          context.font = `bold ${FINGER_FONT_PX}px -apple-system, Helvetica, Arial, sans-serif`;
+          context.textAlign = "center";
+          context.textBaseline = "alphabetic";
+          context.fillText(String(note.finger), x + w / 2, visibleBottom - 4);
+        }
         if (beat <= position && position < beat + note.durationBeats)
           sounding.set(note.midi, note.hand);
       };

@@ -1,5 +1,6 @@
 import { SplendidGrandPiano } from "smplr";
 import { barStartBeat, beatSeconds, type Grid, timeToBeat } from "@/lib/grid";
+import type { Finger } from "@/lib/fingering";
 import type { Hand, Note } from "@/lib/notes";
 
 export type BeatNote = {
@@ -8,6 +9,7 @@ export type BeatNote = {
   midi: number;
   velocity: number;
   hand: Hand;
+  finger?: Finger;
 };
 
 type Anchor = { beat: number; time: number };

@@ -7,6 +7,7 @@ import { type Block, blockRepeats, blocksOfPart, effectiveParts } from "@/lib/bl
 import { barOfBeat, barStartBeat, beatSeconds, timeToBeat } from "@/lib/grid";
 import { parseMidi, type ParsedMidi } from "@/lib/midi";
 import { assignHands } from "@/lib/notes";
+import { assignFingering } from "@/lib/fingering";
 import { type Part, type Song, SongSchema, type SongPatch } from "@/lib/song";
 import { Corrections } from "./corrections";
 import { type BeatNote, Engine } from "./engine";
@@ -46,8 +47,10 @@ export function Player({ initialSong }: { initialSong: Song }) {
     const analysis = analyseNotes(song, notes);
     const parts = effectiveParts(song.parts, analysis.totalBars);
     const blocks = parts.flatMap((part, i) => blocksOfPart(part, i));
+    const fingers = assignFingering(notes);
     const beatNotes: BeatNote[] = notes
-      .map((n) => ({
+      .map((n, i) => ({
+        finger: fingers[i],
         beat: timeToBeat(song, n.time),
         durationBeats: n.duration / beatSeconds(song),
         midi: n.midi,
@@ -220,6 +223,10 @@ export function Player({ initialSong }: { initialSong: Song }) {
           engine.metronome = !store.metronome;
           store.set({ metronome: engine.metronome });
           break;
+        case "f":
+        case "F":
+          store.set({ fingering: !store.fingering });
+          break;
         case "Escape":
           setLoop(null, false);
           break;
@@ -245,6 +252,7 @@ export function Player({ initialSong }: { initialSong: Song }) {
             {state.muted.left ? " · links stumm" : ""}
             {state.muted.right ? " · rechts stumm" : ""}
             {state.metronome ? " · Metronom" : ""}
+            {state.fingering ? " · Fingersatz" : ""}
           </span>
         ) : (
           <span className="dim">lädt</span>
@@ -305,6 +313,9 @@ export function Player({ initialSong }: { initialSong: Song }) {
         </span>
         <span>
           <b>M</b>Metronom
+        </span>
+        <span>
+          <b>F</b>Fingersatz
         </span>
         <span>
           <b>Esc</b>Loop aus

@@ -11,6 +11,8 @@ type PlayerState = {
   muted: { left: boolean; right: boolean };
   loop: Loop | null;
   metronome: boolean;
+  // Finger numbers on the falling notes, display only.
+  fingering: boolean;
   set: (patch: Partial<Omit<PlayerState, "set">>) => void;
 };
 
@@ -25,5 +27,6 @@ export const usePlayer = create<PlayerState>((set) => ({
   muted: { left: false, right: false },
   loop: null,
   metronome: false,
+  fingering: true,
   set: (patch) => set(patch),
 }));
