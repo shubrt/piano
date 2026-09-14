@@ -9,7 +9,16 @@ export function isBlack(midi: number): boolean {
   return BLACK.has(midi % 12);
 }
 
-export type KeyRect = { midi: number; x: number; width: number; black: boolean };
+export type KeyRect = {
+  midi: number;
+  x: number;
+  width: number;
+  black: boolean;
+  // Column for the falling note: the part of the key no other key covers, so
+  // notes of neighbouring keys never overlap.
+  noteX: number;
+  noteWidth: number;
+};
 
 // White keys share the width evenly; black keys sit between them.
 export function keyboardLayout(totalWidth: number): KeyRect[] {
@@ -20,14 +29,20 @@ export function keyboardLayout(totalWidth: number): KeyRect[] {
   let whiteIndex = 0;
   for (let midi = FIRST_KEY; midi <= LAST_KEY; midi++) {
     if (isBlack(midi)) {
+      const x = whiteIndex * whiteWidth - blackWidth / 2;
+      keys.push({ midi, x, width: blackWidth, black: true, noteX: x, noteWidth: blackWidth });
+    } else {
+      const x = whiteIndex * whiteWidth;
+      const leftCut = midi > FIRST_KEY && isBlack(midi - 1) ? blackWidth / 2 : 0;
+      const rightCut = midi < LAST_KEY && isBlack(midi + 1) ? blackWidth / 2 : 0;
       keys.push({
         midi,
-        x: whiteIndex * whiteWidth - blackWidth / 2,
-        width: blackWidth,
-        black: true,
+        x,
+        width: whiteWidth,
+        black: false,
+        noteX: x + leftCut,
+        noteWidth: whiteWidth - leftCut - rightCut,
       });
-    } else {
-      keys.push({ midi, x: whiteIndex * whiteWidth, width: whiteWidth, black: false });
       whiteIndex++;
     }
   }

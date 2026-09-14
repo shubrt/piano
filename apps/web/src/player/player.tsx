@@ -163,8 +163,11 @@ export function Player({ initialSong }: { initialSong: Song }) {
       const store = usePlayer.getState();
       const { totalBars } = derived.analysis;
       const bar = Math.min(totalBars, barOfBeat(song, engine.position()));
+      // Stepping back past bar 1 lands in the empty bar before it.
       const jumpToBar = (target: number) =>
-        engine.seek(barStartBeat(song, Math.max(1, Math.min(totalBars, target))));
+        engine.seek(
+          target < 1 ? -engine.prerollBeats() : barStartBeat(song, Math.min(totalBars, target)),
+        );
       const moveBlock = (direction: 1 | -1) => {
         const index = derived.blocks.findIndex((b) => bar >= b.fromBar && bar <= b.toBar);
         const next = derived.blocks[index + direction];

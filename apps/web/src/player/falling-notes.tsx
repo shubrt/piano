@@ -111,10 +111,8 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
         const bottom = Math.min(hitY, hitY - (beat - position) * pxPerBeat);
         const top = Math.max(0, bottom - note.durationBeats * pxPerBeat + NOTE_GAP_PX);
         if (bottom <= top) return;
-        const x = key.black ? key.x + 1 : key.x + 2;
-        const w = key.black ? key.width - 2 : key.width - 4;
         context.fillStyle = note.hand === "left" ? LEFT_COLOR : RIGHT_COLOR;
-        context.fillRect(x, top, w, bottom - top);
+        context.fillRect(key.noteX + 1, top, key.noteWidth - 2, bottom - top);
         if (beat <= position && position < beat + note.durationBeats)
           sounding.set(note.midi, note.hand);
       };

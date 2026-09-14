@@ -15,9 +15,9 @@ type Anchor = { beat: number; time: number };
 const LOOKAHEAD_SEC = 0.2;
 const TICK_MS = 50;
 
-// Empty bars before the music: at the start of the song after pressing play,
-// and between two passes of a loop. One place, both cases.
-export const PREROLL_BARS = 2;
+// Empty bars before the music: at the start of the song, and between two
+// passes of a loop. One place, both cases.
+export const PREROLL_BARS = 1;
 
 // Plays notes on the Web Audio clock. Position is a beat number relative to
 // bar 1; time <-> beat mapping goes through anchors so tempo changes, seeks and
