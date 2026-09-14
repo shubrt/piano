@@ -5,7 +5,9 @@ import { parseMidi } from "@/lib/midi";
 import { assignHands } from "@/lib/notes";
 import type { Song } from "@/lib/song";
 import { listSongs, readMidi } from "@/lib/storage";
+import { DeleteButton } from "./delete-button";
 import { ImportPanel } from "./import-panel";
+import { SourceLink } from "./source-link";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +49,12 @@ export default async function HomePage() {
                 {song.parts.length > 0 ? `${song.parts.length} Parts` : "ohne Struktur"}
                 {song.analysis?.error ? " ⚠" : ""}
               </td>
-              <td className="dim">{song.source.type === "youtube" ? "aus YouTube" : "aus MIDI"}</td>
+              <td>
+                <SourceLink source={song.source} />
+              </td>
+              <td>
+                <DeleteButton id={song.id} title={song.title} />
+              </td>
             </tr>
           ))}
         </tbody>

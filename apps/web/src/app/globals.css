@@ -242,3 +242,21 @@ button:focus-visible {
   font-weight: 600;
   margin-right: 5px;
 }
+
+.source {
+  white-space: nowrap;
+}
+
+.source:hover {
+  color: #fff;
+}
+
+.songs .delete {
+  border: none;
+  padding: 0;
+  color: var(--dim);
+}
+
+.songs .delete:hover {
+  color: #fff;
+}
