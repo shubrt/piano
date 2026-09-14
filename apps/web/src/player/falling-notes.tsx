@@ -5,7 +5,7 @@ import type { Scale } from "@/lib/analysis/scale";
 import { barOfBeat, type Grid } from "@/lib/grid";
 import type { Hand } from "@/lib/notes";
 import type { BeatNote, Engine } from "./engine";
-import { FIRST_KEY, keyboardLayout, LAST_KEY } from "./keyboard-layout";
+import { FIRST_KEY, isBlack, keyboardLayout, LAST_KEY } from "./keyboard-layout";
 import { usePlayer } from "./store";
 
 const LEFT_COLOR = "#4f7be8";
@@ -117,19 +117,23 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
         );
         if (bottom <= top) return;
         context.fillStyle = note.hand === "left" ? LEFT_COLOR : RIGHT_COLOR;
-        context.fillRect(key.noteX + 1, top, key.noteWidth - 2, bottom - top);
+        context.fillRect(key.x + 1, top, key.width - 2, bottom - top);
         if (beat <= position && position < beat + note.durationBeats)
           sounding.set(note.midi, note.hand);
       };
-      for (const note of notes) {
-        if (muted[note.hand]) continue;
-        if (inLoop && loop && loopStart !== null) {
-          if (note.beat < loop.fromBeat || note.beat >= loop.toBeat) continue;
-          const cycle = loop.toBeat - loopStart;
-          for (let shift = 0; note.beat + shift <= to; shift += cycle) drawNote(note, shift);
-        } else {
-          if (note.beat > to) break;
-          drawNote(note, 0);
+      // Black-key notes are narrow and sit inside the white columns, so they are
+      // drawn after the white-key notes to stay visible.
+      for (const blackPass of [false, true]) {
+        for (const note of notes) {
+          if (muted[note.hand] || isBlack(note.midi) !== blackPass) continue;
+          if (inLoop && loop && loopStart !== null) {
+            if (note.beat < loop.fromBeat || note.beat >= loop.toBeat) continue;
+            const cycle = loop.toBeat - loopStart;
+            for (let shift = 0; note.beat + shift <= to; shift += cycle) drawNote(note, shift);
+          } else {
+            if (note.beat > to) break;
+            drawNote(note, 0);
+          }
         }
       }
 
