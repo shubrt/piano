@@ -18,6 +18,11 @@ const KEYBOARD_HEIGHT = 72;
 const VISIBLE_BEATS = 8;
 // Gap at the end of every note so repeated notes read as two.
 const NOTE_GAP_PX = 3;
+// Bars are pills: rounded, a bit narrower than their column, with a light
+// sheen down the middle.
+const NOTE_RADIUS_PX = 6;
+const NOTE_WIDTH_RATIO = 0.8;
+const GLOSS_LIGHTEN = 0.3;
 // Keys in the scale look like a normal keyboard, the rest are grey.
 const WHITE_KEY = "#f2f2f2";
 const WHITE_KEY_OFF = "#7a7a7a";
@@ -107,21 +112,33 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
       // next pass falls in during the empty pre-roll bars.
       const sounding = new Map<number, Hand>();
       const to = position + VISIBLE_BEATS;
+      context.save();
+      context.beginPath();
+      context.rect(0, 0, width, hitY);
+      context.clip();
       const drawNote = (note: BeatNote, shift: number) => {
         const beat = note.beat + shift;
         if (beat > to || beat + note.durationBeats < position) return;
         const key = keyByMidi.get(note.midi);
         if (!key) return;
         // The note keeps falling while it sounds: its top follows the release
-        // time, only the part below the hit line is cut off.
-        const bottom = Math.min(hitY, hitY - (beat - position) * pxPerBeat);
-        const top = Math.max(
-          0,
-          hitY - (beat + note.durationBeats - position) * pxPerBeat + NOTE_GAP_PX,
-        );
-        if (bottom <= top) return;
-        context.fillStyle = noteColor(note.hand, key.black);
-        context.fillRect(key.noteX + 1, top, key.noteWidth - 2, bottom - top);
+        // time, the clip region cuts off everything below the hit line.
+        const bottom = hitY - (beat - position) * pxPerBeat;
+        const top = hitY - (beat + note.durationBeats - position) * pxPerBeat + NOTE_GAP_PX;
+        if (bottom <= top || top > hitY) return;
+        const w = key.noteWidth * NOTE_WIDTH_RATIO;
+        const x = key.noteX + (key.noteWidth - w) / 2;
+        const h = bottom - top;
+        const radius = Math.min(NOTE_RADIUS_PX, w / 2, h / 2);
+        const base = noteColor(note.hand, key.black);
+        const gloss = context.createLinearGradient(x, 0, x + w, 0);
+        gloss.addColorStop(0, base);
+        gloss.addColorStop(0.5, lighten(base, GLOSS_LIGHTEN));
+        gloss.addColorStop(1, base);
+        context.fillStyle = gloss;
+        context.beginPath();
+        context.roundRect(x, top, w, h, radius);
+        context.fill();
         if (beat <= position && position < beat + note.durationBeats)
           sounding.set(note.midi, note.hand);
       };
@@ -136,6 +153,8 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
           drawNote(note, 0);
         }
       }
+
+      context.restore();
 
       // Keyboard: scale tones white and black, the rest grey.
       context.fillStyle = "#000";
@@ -178,6 +197,17 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
 function noteColor(hand: Hand, blackKey: boolean): string {
   if (hand === "left") return blackKey ? LEFT_COLOR_BLACK_KEY : LEFT_COLOR;
   return blackKey ? RIGHT_COLOR_BLACK_KEY : RIGHT_COLOR;
+}
+
+// Mixes a #rrggbb colour towards white by the given share.
+function lighten(hex: string, share: number): string {
+  const channel = (i: number) => {
+    const v = parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+    return Math.round(v + (255 - v) * share)
+      .toString(16)
+      .padStart(2, "0");
+  };
+  return `#${channel(0)}${channel(1)}${channel(2)}`;
 }
 
 function keyColor(hand: Hand | undefined, base: string): string {
