@@ -1,12 +1,13 @@
 # piano
 
 Monorepo for piano, a MIDI player with YouTube import and AI structure
-detection for practicing piano bar by bar and block by block. No application
-code yet, just the workspace shell.
+detection for practicing piano bar by bar and block by block.
 
 ## Structure
 
-- `apps/` application packages, currently empty
+- `apps/web` the Next.js app: pages, API routes, analysis, player. Songs live
+  in `apps/web/songs/<id>/` as `notes.mid` plus `song.json`. The Python side of
+  the YouTube import (yt-dlp, ffmpeg, Transkun) is in `apps/web/import/`.
 - `libs/` shared packages, currently empty
 - `tools/typescript` the shared `@tool/tsconfig` presets: `core`, `lib`, `react`
 
@@ -20,7 +21,22 @@ scripts, linting, formatting and tests.
 
 ```bash
 vp i
+cp .env.example .env        # OPENROUTER_API_KEY, STRUCTURE_MODEL
+vp run dev                  # http://localhost:3000
 ```
+
+Without `OPENROUTER_API_KEY` the player works, but new songs get no parts and
+the song list marks them "ohne Struktur".
+
+YouTube import needs the Python toolchain once:
+
+```bash
+brew install yt-dlp ffmpeg uv
+cd apps/web/import && uv python install 3.12 && uv sync
+```
+
+The first transcription downloads the Transkun model. Without a GPU a song
+takes one to three minutes.
 
 ## Checks
 
@@ -28,13 +44,8 @@ vp i
 vp run qa
 ```
 
-`qa` runs formatting, lint, sherif, typecheck and the test suite. It fails
-until the first workspace package exists, because `vp run -r typecheck` finds
-no task and `vp test run` finds no test files. `vp check` and `vp run sherif`
-pass on their own in the meantime.
-
-Tests live in each package's `test/` directory and run from the repository
-root:
+`qa` runs formatting, lint, sherif, typecheck and the test suite. Tests live in
+each package's `test/` directory and run from the repository root:
 
 ```bash
 vp test run     # single pass

@@ -15,11 +15,13 @@ export async function analyzeNewSong(
   const parsed = parseMidi(midi);
   const hands = detectHands(parsed);
   const notes = assignHands(parsed, hands);
-  // A tempo event anchors the bar grid at tick 0. Without one, tempo and offset
-  // come from the onsets.
+  // A tempo event in a MIDI file anchors the bar grid at tick 0. Transcribed
+  // audio carries only the transcriber's default tempo, so YouTube songs and
+  // files without a tempo event get tempo and offset from the onsets.
+  const tempoEvent = input.source.type === "midi" ? parsed.tempoBpm : null;
   const detected = detectTempo(notes.map((n) => n.time));
-  const tempo = parsed.tempoBpm
-    ? { bpm: roundBpm(parsed.tempoBpm), offsetSec: 0 }
+  const tempo = tempoEvent
+    ? { bpm: roundBpm(tempoEvent), offsetSec: 0 }
     : { bpm: detected.bpm, offsetSec: detected.offsetSec };
   // Starting guess for the time signature; the model may still change it.
   const beatsPerBar = suggestBeatsPerBar(onsetHistogram({ ...tempo, beatsPerBar: 12 }, notes));
