@@ -9,10 +9,16 @@ import { FIRST_KEY, keyboardLayout, LAST_KEY } from "./keyboard-layout";
 import { usePlayer } from "./store";
 
 const LEFT_COLOR = "#4f7be8";
-const RIGHT_COLOR = "#ffffff";
+const RIGHT_COLOR = "#7fd97f";
 const KEYBOARD_HEIGHT = 72;
 const VISIBLE_BEATS = 8;
-const PAST_BEATS = 0.5;
+// Gap at the end of every note so repeated notes read as two.
+const NOTE_GAP_PX = 3;
+// Keys in the scale look like a normal keyboard, the rest are grey.
+const WHITE_KEY = "#f2f2f2";
+const WHITE_KEY_OFF = "#7a7a7a";
+const BLACK_KEY = "#000000";
+const BLACK_KEY_OFF = "#3c3c3c";
 
 type Props = {
   engine: Engine;
@@ -57,8 +63,14 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
       const pxPerBeat = hitY / VISIBLE_BEATS;
       const position = engine.position();
       const muted = engine.muted;
+      const loop = engine.loop;
+      const loopStart = engine.loopStart();
+      const inLoop =
+        loop !== null && loopStart !== null && position >= loopStart && position < loop.toBeat;
 
-      const bar = Math.min(totalBars, barOfBeat(grid, position));
+      // In the pre-roll of a loop the header already names the loop's first bar.
+      const shown = inLoop && loop && position < loop.fromBeat ? loop.fromBeat : position;
+      const bar = Math.min(totalBars, barOfBeat(grid, shown));
       if (bar !== lastBar) {
         lastBar = bar;
         usePlayer.getState().set({ currentBar: bar });
@@ -68,8 +80,8 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
       const keys = keyboardLayout(width);
       const keyByMidi = new Map(keys.map((k) => [k.midi, k]));
 
-      // Beat and bar lines with bar numbers.
-      const firstBeat = Math.floor(position - PAST_BEATS);
+      // Beat and bar lines with bar numbers. Pre-roll beats before bar 1 have none.
+      const firstBeat = Math.floor(position);
       for (let beat = firstBeat; beat <= position + VISIBLE_BEATS; beat++) {
         const y = hitY - (beat - position) * pxPerBeat;
         if (y < 0 || y > hitY) continue;
@@ -86,41 +98,51 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
         }
       }
 
-      // Notes in view. Sounding notes light up their keys.
+      // Notes in view, cut off at the hit line. Sounding notes light up their keys.
+      // Inside a loop only the loop's notes exist, repeated once per cycle so the
+      // next pass falls in during the empty pre-roll bars.
       const sounding = new Map<number, Hand>();
-      const from = position - PAST_BEATS - 16;
       const to = position + VISIBLE_BEATS;
-      for (const note of notes) {
-        if (note.beat > to) break;
-        if (note.beat + note.durationBeats < position - PAST_BEATS) continue;
-        if (muted[note.hand]) continue;
+      const drawNote = (note: BeatNote, shift: number) => {
+        const beat = note.beat + shift;
+        if (beat > to || beat + note.durationBeats < position) return;
         const key = keyByMidi.get(note.midi);
-        if (!key || note.beat < from) continue;
-        const bottom = hitY - (note.beat - position) * pxPerBeat;
-        const top = bottom - note.durationBeats * pxPerBeat;
+        if (!key) return;
+        const bottom = Math.min(hitY, hitY - (beat - position) * pxPerBeat);
+        const top = Math.max(0, bottom - note.durationBeats * pxPerBeat + NOTE_GAP_PX);
+        if (bottom <= top) return;
         const x = key.black ? key.x + 1 : key.x + 2;
         const w = key.black ? key.width - 2 : key.width - 4;
         context.fillStyle = note.hand === "left" ? LEFT_COLOR : RIGHT_COLOR;
-        context.globalAlpha = bottom > hitY ? 0.5 : 1;
-        context.fillRect(x, Math.max(0, top), w, Math.min(bottom, hitY) - Math.max(0, top));
-        context.globalAlpha = 1;
-        if (note.beat <= position && position < note.beat + note.durationBeats)
+        context.fillRect(x, top, w, bottom - top);
+        if (beat <= position && position < beat + note.durationBeats)
           sounding.set(note.midi, note.hand);
+      };
+      for (const note of notes) {
+        if (muted[note.hand]) continue;
+        if (inLoop && loop && loopStart !== null) {
+          if (note.beat < loop.fromBeat || note.beat >= loop.toBeat) continue;
+          const cycle = loop.toBeat - loopStart;
+          for (let shift = 0; note.beat + shift <= to; shift += cycle) drawNote(note, shift);
+        } else {
+          if (note.beat > to) break;
+          drawNote(note, 0);
+        }
       }
 
-      // Keyboard: scale tones bright, others dark.
+      // Keyboard: scale tones white and black, the rest grey.
       context.fillStyle = "#000";
       context.fillRect(0, hitY, width, KEYBOARD_HEIGHT);
       for (const key of keys) {
         if (key.black) continue;
         const inScale = scale.pitchClasses.has(key.midi % 12);
-        context.fillStyle = keyColor(sounding.get(key.midi), inScale ? "#f2f2f2" : "#4a4a4a");
+        context.fillStyle = keyColor(sounding.get(key.midi), inScale ? WHITE_KEY : WHITE_KEY_OFF);
         context.fillRect(key.x + 0.5, hitY + 1, key.width - 1, KEYBOARD_HEIGHT - 2);
       }
       for (const key of keys) {
         if (!key.black) continue;
         const inScale = scale.pitchClasses.has(key.midi % 12);
-        context.fillStyle = keyColor(sounding.get(key.midi), inScale ? "#9a9a9a" : "#1c1c1c");
+        context.fillStyle = keyColor(sounding.get(key.midi), inScale ? BLACK_KEY : BLACK_KEY_OFF);
         context.fillRect(key.x, hitY + 1, key.width, KEYBOARD_HEIGHT * 0.62);
       }
       // Mark middle C.
@@ -148,6 +170,6 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
 
 function keyColor(hand: Hand | undefined, base: string): string {
   if (hand === "left") return LEFT_COLOR;
-  if (hand === "right") return "#7fd97f";
+  if (hand === "right") return RIGHT_COLOR;
   return base;
 }

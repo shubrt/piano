@@ -13,6 +13,7 @@ import { type BeatNote, Engine } from "./engine";
 import { FallingNotes } from "./falling-notes";
 import { type Loop, TEMPO_MAX, TEMPO_MIN, TEMPO_STEP, usePlayer } from "./store";
 import { StructureBar } from "./structure-bar";
+import { SourceLink } from "@/app/source-link";
 
 export function Player({ initialSong }: { initialSong: Song }) {
   const [song, setSong] = useState(initialSong);
@@ -87,7 +88,8 @@ export function Player({ initialSong }: { initialSong: Song }) {
             }
           : null,
       );
-      if (loop && jump) engine.seek(barStartBeat(song, loop.fromBar));
+      // A loop starts with its empty pre-roll bars, like every later pass.
+      if (loop && jump) engine.seek(barStartBeat(song, loop.fromBar) - engine.prerollBeats());
       usePlayer.getState().set({ loop });
     },
     [engine, song],
@@ -230,6 +232,7 @@ export function Player({ initialSong }: { initialSong: Song }) {
     <main className="player">
       <header className="player-head">
         <h1>{song.title}</h1>
+        <SourceLink source={song.source} />
         {derived ? (
           <span className="mono">
             {scaleName(derived.analysis.scale)} · {song.beatsPerBar}/4 ·{" "}

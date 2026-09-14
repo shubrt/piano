@@ -15,6 +15,10 @@ type Anchor = { beat: number; time: number };
 const LOOKAHEAD_SEC = 0.2;
 const TICK_MS = 50;
 
+// Empty bars before the music: at the start of the song after pressing play,
+// and between two passes of a loop. One place, both cases.
+export const PREROLL_BARS = 2;
+
 // Plays notes on the Web Audio clock. Position is a beat number relative to
 // bar 1; time <-> beat mapping goes through anchors so tempo changes, seeks and
 // loop wraps are a new anchor instead of a rescheduling.
@@ -33,6 +37,24 @@ export class Engine {
   metronome = false;
   loop: { fromBeat: number; toBeat: number } | null = null;
   onEnded: (() => void) | null = null;
+
+  prerollBeats(): number {
+    return PREROLL_BARS * this.grid.beatsPerBar;
+  }
+
+  // Start of the empty bars before a loop pass.
+  loopStart(): number | null {
+    return this.loop ? this.loop.fromBeat - this.prerollBeats() : null;
+  }
+
+  // True while the position sits in the loop cycle: pre-roll plus loop bars.
+  inLoopCycle(beat: number): boolean {
+    return (
+      this.loop !== null &&
+      beat >= this.loop.fromBeat - this.prerollBeats() - 1e-9 &&
+      beat < this.loop.toBeat - 1e-9
+    );
+  }
 
   setSong(notes: readonly Note[], grid: Grid, totalBars: number) {
     const beat = this.position();
@@ -87,7 +109,9 @@ export class Engine {
     this.ctx ??= new AudioContext();
     this.piano ??= SplendidGrandPiano(this.ctx);
     await this.ctx.resume();
-    const beat = this.anchorAt(this.now()).beat;
+    let beat = this.anchorAt(this.now()).beat;
+    // Play from the very beginning starts with empty bars.
+    if (beat <= 0) beat = -this.prerollBeats();
     this.anchors = [{ beat, time: this.now() }];
     this.scheduledUntil = beat;
     this.playing = true;
@@ -106,7 +130,7 @@ export class Engine {
   }
 
   seek(beat: number) {
-    const target = Math.max(0, Math.min(beat, this.endBeat));
+    const target = Math.max(-this.prerollBeats(), Math.min(beat, this.endBeat));
     this.piano?.stop();
     this.anchors = [{ beat: target, time: this.now() }];
     this.scheduledUntil = target;
@@ -120,6 +144,7 @@ export class Engine {
 
   setLoop(loop: { fromBeat: number; toBeat: number } | null) {
     this.loop = loop;
+    this.piano?.stop();
   }
 
   private tick() {
@@ -127,19 +152,21 @@ export class Engine {
     const horizon = this.now() + LOOKAHEAD_SEC;
     // Several wraps per tick keep very short loops seamless.
     for (let guard = 0; guard < 8; guard++) {
-      // Outside the loop range playback runs on to the end of the song.
-      const inLoop = this.loop !== null && this.scheduledUntil < this.loop.toBeat - 1e-9;
+      // Outside the loop cycle playback runs on to the end of the song.
+      const inLoop = this.inLoopCycle(this.scheduledUntil);
       const limit = inLoop && this.loop ? this.loop.toBeat : this.endBeat;
       const upTo = Math.min(limit, this.beatAtHorizon(horizon));
       if (upTo > this.scheduledUntil) {
-        this.scheduleRange(this.scheduledUntil, upTo);
+        this.scheduleRange(this.scheduledUntil, upTo, inLoop);
         this.scheduledUntil = upTo;
       }
       if (upTo < limit - 1e-9) return;
       if (inLoop && this.loop) {
+        // Wrap to the empty bars before the loop, the metronome keeps going.
         const wrapTime = this.timeOf(limit);
-        this.pushAnchor({ beat: this.loop.fromBeat, time: wrapTime });
-        this.scheduledUntil = this.loop.fromBeat;
+        const restart = this.loop.fromBeat - this.prerollBeats();
+        this.pushAnchor({ beat: restart, time: wrapTime });
+        this.scheduledUntil = restart;
         if (wrapTime >= horizon) return;
       } else {
         this.finish(this.timeOf(limit));
@@ -165,14 +192,17 @@ export class Engine {
     }, delay);
   }
 
-  // Schedules every note and metronome click with a beat in [from, to).
-  private scheduleRange(from: number, to: number) {
+  // Schedules every note and metronome click with a beat in [from, to). Inside
+  // the loop cycle only the loop's own notes sound, the pre-roll bars are silent.
+  private scheduleRange(from: number, to: number, inLoop: boolean) {
     if (!this.piano || to <= from) return;
     const rate = this.rate();
     let i = lowerBound(this.notes, from);
     for (; i < this.notes.length && this.notes[i]!.beat < to; i++) {
       const note = this.notes[i]!;
       if (this.muted[note.hand]) continue;
+      if (inLoop && this.loop && (note.beat < this.loop.fromBeat || note.beat >= this.loop.toBeat))
+        continue;
       this.piano.start({
         note: note.midi,
         velocity: Math.round(note.velocity * 127),
