@@ -1,5 +1,7 @@
 import { describe, expect, test } from "vite-plus/test";
 import { detectTempo } from "../src/lib/analysis/tempo";
+import { assignHands } from "../src/lib/notes";
+import { loadTestMidi } from "./fixtures";
 
 // Onsets on a sixteenth grid at the given tempo, starting at `start`.
 function onsets(bpm: number, start: number, sixteenths: number[]): number[] {
@@ -25,5 +27,21 @@ describe("detectTempo", () => {
       (t, i) => t + (i % 2 ? 0.003 : -0.002),
     );
     expect(detectTempo(jittered).bpm).toBe(88);
+  });
+});
+
+describe("detectTempo on the test files", () => {
+  test("Ancient Stones without tempo event is 120", () => {
+    const parsed = loadTestMidi("ancient-stones");
+    const notes = assignHands(parsed, { type: "tracks" });
+    const result = detectTempo(notes.map((n) => n.time));
+    expect(result.bpm).toBe(120);
+    expect(result.offsetSec).toBeCloseTo(0, 6);
+  });
+
+  test("Secunda onsets alone give the 88 of its tempo event", () => {
+    const parsed = loadTestMidi("secunda");
+    const notes = assignHands(parsed, { type: "split", splitPitch: 67 });
+    expect(detectTempo(notes.map((n) => n.time)).bpm).toBe(88);
   });
 });
