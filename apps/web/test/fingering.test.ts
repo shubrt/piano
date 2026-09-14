@@ -46,6 +46,17 @@ describe("assignFingering", () => {
     expect(assignFingering(notes)).toEqual([5, 2, 1]);
   });
 
+  test("after a rest the same finger may take a new key", () => {
+    // Left hand: C2 with the pinky, two beats of rest, then the D minor figure.
+    const notes: Note[] = [
+      { time: 0, duration: 1, midi: 36, velocity: 0.8, hand: "left" },
+      { time: 3, duration: 2, midi: 38, velocity: 0.8, hand: "left" },
+      { time: 3.5, duration: 0.5, midi: 45, velocity: 0.8, hand: "left" },
+      { time: 4, duration: 0.5, midi: 50, velocity: 0.8, hand: "left" },
+    ];
+    expect(assignFingering(notes)).toEqual([5, 5, 2, 1]);
+  });
+
   test("a jump beyond the hand span is a position change, not impossible", () => {
     // Left hand: low E2 held, then B3 far above, then back to C2.
     const notes = melody("left", [40, 59, 36]);

@@ -15,6 +15,9 @@ const IMPOSSIBLE = 1000;
 const POSITION_CHANGE = 3;
 // Same finger on a new key. Fine for slow octaves, never while the key is held.
 const SAME_FINGER = 6;
+// After a rest this long the hand relocates freely: any finger pair costs the same.
+const REST_SEC = 0.3;
+const AFTER_REST = 1;
 
 // Span limits in semitones per finger pair for the right hand (lower finger
 // first): MinPrac, MinComf, MinRel, MaxRel, MaxComf, MaxPrac. Left hand is the
@@ -36,14 +39,17 @@ const BLACK = new Set([1, 3, 6, 8, 10]);
 const isBlack = (midi: number) => BLACK.has(midi % 12);
 
 // Cost of playing pitch b with finger fb right after pitch a with finger fa.
-// `held` means a is still sounding when b starts, so its finger is busy.
+// `gap` is the time from a's release to b's onset: negative while a still
+// sounds (its finger is busy), large after a rest (the hand moves freely).
 // Standing costs of fb itself are added once per note in chordCost.
-function pairCost(hand: Hand, a: number, fa: Finger, b: number, fb: Finger, held: boolean): number {
+function pairCost(hand: Hand, a: number, fa: Finger, b: number, fb: Finger, gap: number): number {
+  const held = gap < -CHORD_WINDOW_SEC;
   if (fa === fb) {
     // Same finger again is free on the same key, awkward on a different one,
     // impossible while the first key is still down.
     if (a === b) return 0;
-    return held ? IMPOSSIBLE : SAME_FINGER;
+    if (held) return IMPOSSIBLE;
+    return gap > REST_SEC ? AFTER_REST : SAME_FINGER;
   }
   // Orient so that the lower-numbered finger comes first; for the left hand
   // a rising finger number means a falling pitch.
@@ -52,6 +58,9 @@ function pairCost(hand: Hand, a: number, fa: Finger, b: number, fb: Finger, held
   const [, minComf, minRel, maxRel, maxComf, maxPrac] = SPANS[`${lo}-${hi}`]!;
   const thumb = lo === 1 ? 1 : 2;
   const alternation = (fa === 3 && fb === 4) || (fa === 4 && fb === 3) ? 1 : 0;
+  // After a rest the hand relocates freely. Landing on an outer finger in the
+  // natural order is still the comfortable default.
+  if (gap > REST_SEC) return AFTER_REST + (d < 0 ? 1 : 0) + (fb === 1 || fb === 5 ? 0 : 1);
   // Beyond the practical span the hand has to jump anyway. Flat price, more if
   // the fingers land in the wrong order for the direction, and a little more
   // for every inner finger involved: a jump leaves from and lands on the edge
@@ -126,7 +135,7 @@ function chordCost(hand: Hand, pitches: number[], fingers: Finger[]): number {
   for (let i = 0; i < pitches.length; i++) {
     cost += fingerCost(fingers[i]!, pitches[i]!);
     if (i > 0)
-      cost += pairCost(hand, pitches[i - 1]!, fingers[i - 1]!, pitches[i]!, fingers[i]!, true);
+      cost += pairCost(hand, pitches[i - 1]!, fingers[i - 1]!, pitches[i]!, fingers[i]!, -Infinity);
   }
   return cost;
 }
@@ -137,8 +146,7 @@ function transitionCost(hand: Hand, a: Event, fa: Finger[], b: Event, fb: Finger
   let n = 0;
   for (let i = 0; i < a.pitches.length; i++) {
     for (let j = 0; j < b.pitches.length; j++) {
-      const held = a.releases[i]! > b.time + CHORD_WINDOW_SEC;
-      sum += pairCost(hand, a.pitches[i]!, fa[i]!, b.pitches[j]!, fb[j]!, held);
+      sum += pairCost(hand, a.pitches[i]!, fa[i]!, b.pitches[j]!, fb[j]!, b.time - a.releases[i]!);
       n++;
     }
   }
@@ -193,4 +201,25 @@ export function assignFingering(notes: readonly Note[]): (Finger | undefined)[] 
     }
   }
   return result;
+}
+
+// Total cost of a given fingering, for tests and for checking alternatives.
+export function fingeringCost(
+  notes: readonly Note[],
+  fingers: readonly (Finger | undefined)[],
+): number {
+  let total = 0;
+  for (const hand of ["left", "right"] as const) {
+    const indices = notes.map((n, i) => (n.hand === hand ? i : -1)).filter((i) => i >= 0);
+    const events = eventsOf(notes, indices);
+    const fingersOf = (e: Event) =>
+      e.indices.map((i) => fingers[i]).filter((f): f is Finger => f !== undefined);
+    events.forEach((event, e) => {
+      const own = fingersOf(event);
+      total += chordCost(hand, event.pitches.slice(0, own.length), own);
+      if (e > 0)
+        total += transitionCost(hand, events[e - 1]!, fingersOf(events[e - 1]!), event, own);
+    });
+  }
+  return total;
 }
