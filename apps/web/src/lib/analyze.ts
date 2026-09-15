@@ -4,10 +4,11 @@ import { env } from "./env";
 import { parseMidi } from "./midi";
 import { allOnsets, assignHands, detectHands } from "./notes";
 import type { Song } from "./song";
-import { detectStructure } from "./structure/detect";
+import { detectStructure, LOCAL_MODEL } from "./structure/detect";
 
-// Steps 4 to 7 of the pipeline: grid from onsets, hands, then the model for
-// time signature, parts and block size. Shared by MIDI drop and YouTube import.
+// Steps 4 to 7 of the pipeline: grid from onsets, hands, then the local
+// heuristic for parts and block size. Shared by MIDI drop and YouTube import.
+// The model runs only on request, see reanalyzeStructure.
 export async function analyzeNewSong(
   input: Pick<Song, "id" | "title" | "source">,
   midi: Uint8Array,
@@ -33,7 +34,7 @@ export async function analyzeNewSong(
     grid,
     notes,
     apiKey: env.OPENROUTER_API_KEY,
-    model: env.STRUCTURE_MODEL,
+    model: LOCAL_MODEL,
     fixedBeatsPerBar: false,
   });
   return {
@@ -47,14 +48,20 @@ export async function analyzeNewSong(
   };
 }
 
-// "Struktur neu": keeps the user's grid and hands, asks the model again for parts.
-export async function reanalyzeStructure(song: Song, midi: Uint8Array): Promise<Song> {
+// Keeps the user's grid and hands and finds the parts again. "Struktur neu" in
+// the player uses the heuristic, the "KI-Analyse" button in the song list asks
+// STRUCTURE_MODEL and overwrites the parts with its answer.
+export async function reanalyzeStructure(
+  song: Song,
+  midi: Uint8Array,
+  options: { ai: boolean },
+): Promise<Song> {
   const notes = assignHands(parseMidi(midi), song.hands, song);
   const result = await detectStructure({
     grid: song,
     notes,
     apiKey: env.OPENROUTER_API_KEY,
-    model: env.STRUCTURE_MODEL,
+    model: options.ai ? env.STRUCTURE_MODEL : LOCAL_MODEL,
     fixedBeatsPerBar: true,
   });
   return {

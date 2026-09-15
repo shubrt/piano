@@ -251,12 +251,17 @@ button:focus-visible {
   color: #fff;
 }
 
-.songs .delete {
+.songs button {
   border: none;
   padding: 0;
   color: var(--dim);
 }
 
-.songs .delete:hover {
+.songs button:hover {
   color: #fff;
+}
+
+.songs button:disabled {
+  cursor: default;
+  color: var(--dim);
 }

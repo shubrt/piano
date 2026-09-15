@@ -10,7 +10,7 @@ type Props = {
 };
 
 // BPM, time signature, offset and split pitch (empty = automatic). Every change moves the grid at
-// once and is saved. "Struktur neu" asks the model again with that grid.
+// once and is saved. "Struktur neu" runs the structure heuristic again with that grid.
 export function Corrections({ song, onPatch, onReanalyze }: Props) {
   const [busy, setBusy] = useState(false);
 

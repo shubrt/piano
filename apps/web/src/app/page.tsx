@@ -5,6 +5,8 @@ import { parseMidi } from "@/lib/midi";
 import { assignHands } from "@/lib/notes";
 import type { Song } from "@/lib/song";
 import { listSongs, readMidi } from "@/lib/storage";
+import { LOCAL_MODEL } from "@/lib/structure/detect";
+import { AiButton } from "./ai-button";
 import { DeleteButton } from "./delete-button";
 import { ImportPanel } from "./import-panel";
 import { SourceLink } from "./source-link";
@@ -47,7 +49,11 @@ export default async function HomePage() {
               <td className="num">{bars} Takte</td>
               <td className="num" title={song.analysis?.notes ?? song.analysis?.error}>
                 {song.parts.length > 0 ? `${song.parts.length} Parts` : "ohne Struktur"}
+                {song.analysis && song.analysis.model !== LOCAL_MODEL ? " KI" : ""}
                 {song.analysis?.error ? " ⚠" : ""}
+              </td>
+              <td>
+                <AiButton id={song.id} />
               </td>
               <td>
                 <SourceLink source={song.source} />
