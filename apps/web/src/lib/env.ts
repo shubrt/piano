@@ -4,9 +4,10 @@ import path from "node:path";
 import { z } from "zod";
 
 // The .env lives in the monorepo root (t3.json symlinks it into worktrees).
-// Next only reads the app folder, so load the root file by hand first.
+// Next only reads the app folder, so load the root file by hand first. Bun
+// below 1.3.10 lacks loadEnvFile; the benchmark script passes --env-file instead.
 const rootEnv = path.resolve(process.cwd(), "../../.env");
-if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
+if (existsSync(rootEnv) && typeof process.loadEnvFile === "function") process.loadEnvFile(rootEnv);
 
 export const env = createEnv({
   server: {
