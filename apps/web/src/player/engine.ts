@@ -71,7 +71,8 @@ export class Engine {
       }))
       .sort((a, b) => a.beat - b.beat);
     this.endBeat = barStartBeat(grid, totalBars + 1);
-    this.seek(Math.min(beat, this.endBeat));
+    // A fresh engine sits at 0; the song opens in the empty bar before bar 1.
+    this.seek(beat <= 0 ? -this.prerollBeats() : Math.min(beat, this.endBeat));
   }
 
   private now(): number {
@@ -111,9 +112,7 @@ export class Engine {
     this.ctx ??= new AudioContext();
     this.piano ??= SplendidGrandPiano(this.ctx);
     await this.ctx.resume();
-    let beat = this.anchorAt(this.now()).beat;
-    // Play from the very beginning starts with empty bars.
-    if (beat <= 0) beat = -this.prerollBeats();
+    const beat = this.anchorAt(this.now()).beat;
     this.anchors = [{ beat, time: this.now() }];
     this.scheduledUntil = beat;
     this.playing = true;
