@@ -27,6 +27,6 @@ export const usePlayer = create<PlayerState>((set) => ({
   muted: { left: false, right: false },
   loop: null,
   metronome: false,
-  fingering: true,
+  fingering: false,
   set: (patch) => set(patch),
 }));
