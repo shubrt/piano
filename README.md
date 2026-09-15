@@ -26,8 +26,10 @@ cp .env.example .env        # OPENROUTER_API_KEY, STRUCTURE_MODEL
 vp run dev                  # https://piano.localhost, in a worktree https://<branch>.piano.localhost
 ```
 
-Without `OPENROUTER_API_KEY` the player works, but new songs get no parts and
-the song list marks them "ohne Struktur".
+New songs get their parts from the local heuristic in
+`apps/web/src/lib/structure/heuristic.ts`. The "KI-Analyse" button in the song
+list asks `STRUCTURE_MODEL` via OpenRouter instead and overwrites the parts, so
+`OPENROUTER_API_KEY` is only needed for that button and for benchmark references.
 
 YouTube import needs the Python toolchain once:
 
@@ -38,6 +40,21 @@ cd apps/web/import && uv python install 3.12 && uv sync
 
 The first transcription downloads the Transkun model. Without a GPU a song
 takes one to three minutes.
+
+## Structure benchmark
+
+The benchmark scores the heuristic per song against `songs/<id>/reference.json`,
+100 means identical part starts and block grids:
+
+```bash
+cd apps/web
+vp run benchmark                                   # score songs with a reference
+vp run benchmark -- --reference                    # write missing references with STRUCTURE_MODEL
+vp run benchmark -- --reference anthropic/claude-opus-5
+```
+
+A reference is one model answer. Check it in the player and edit the file where
+the model was wrong. The run exits with 1 when any song scores below 100.
 
 ## Checks
 

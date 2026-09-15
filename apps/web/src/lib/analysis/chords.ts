@@ -8,6 +8,8 @@ import { noteName, pitchClassName, type Scale } from "./scale";
 // diatonic from the scale. The model treats it as a hint only.
 export type BarSummary = {
   bass: string | null;
+  // MIDI pitch of the lowest left-hand note, for the local structure heuristic.
+  bassMidi: number | null;
   rightHandNotes: number;
   chord: string | null;
 };
@@ -33,7 +35,7 @@ export function summariseBars(
   }
   return bars.map((bar) => {
     if (bar.lowestLeft === Infinity)
-      return { bass: null, rightHandNotes: bar.rightHandNotes, chord: null };
+      return { bass: null, bassMidi: null, rightHandNotes: bar.rightHandNotes, chord: null };
     const root = bar.lowestLeft % 12;
     const quality = bar.pcs.has((root + 3) % 12)
       ? "m"
@@ -46,6 +48,7 @@ export function summariseBars(
             : "?";
     return {
       bass: noteName(bar.lowestLeft, scale),
+      bassMidi: bar.lowestLeft,
       rightHandNotes: bar.rightHandNotes,
       chord: pitchClassName(root, scale) + quality,
     };

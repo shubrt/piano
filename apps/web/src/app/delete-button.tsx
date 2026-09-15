@@ -10,7 +10,6 @@ export function DeleteButton({ id, title }: { id: string; title: string }) {
   return (
     <button
       type="button"
-      className="delete"
       disabled={busy}
       onClick={async () => {
         if (!window.confirm(`"${title}" löschen? Der Ordner mit MIDI und Analyse wird entfernt.`))

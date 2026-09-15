@@ -1,0 +1,66 @@
+{
+  "model": "anthropic/claude-opus-5",
+  "at": "2026-09-13T23:16:20.137Z",
+  "parts": [
+    {
+      "name": "Intro",
+      "fromBar": 1,
+      "toBar": 8,
+      "barsPerBlock": 4
+    },
+    {
+      "name": "Thema 1",
+      "fromBar": 9,
+      "toBar": 16,
+      "barsPerBlock": 4
+    },
+    {
+      "name": "Thema 2",
+      "fromBar": 17,
+      "toBar": 24,
+      "barsPerBlock": 4
+    },
+    {
+      "name": "Variation 1",
+      "fromBar": 25,
+      "toBar": 36,
+      "barsPerBlock": 4
+    },
+    {
+      "name": "Übergang 1",
+      "fromBar": 37,
+      "toBar": 38,
+      "barsPerBlock": 2
+    },
+    {
+      "name": "Thema 3",
+      "fromBar": 39,
+      "toBar": 46,
+      "barsPerBlock": 4
+    },
+    {
+      "name": "Thema 4",
+      "fromBar": 47,
+      "toBar": 54,
+      "barsPerBlock": 4
+    },
+    {
+      "name": "Variation 2",
+      "fromBar": 55,
+      "toBar": 62,
+      "barsPerBlock": 4
+    },
+    {
+      "name": "Übergang 2",
+      "fromBar": 63,
+      "toBar": 70,
+      "barsPerBlock": 4
+    },
+    {
+      "name": "Outro",
+      "fromBar": 71,
+      "toBar": 77,
+      "barsPerBlock": 4
+    }
+  ]
+}
