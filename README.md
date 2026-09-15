@@ -16,13 +16,14 @@ versions live in the `catalog` block of `pnpm-workspace.yaml`.
 
 ## Setup
 
-Requirements: Vite+ (`vp`), Node 22+, Bun 1.3.10+. `vp` drives installs,
+Requirements: Vite+ (`vp`), Node 22+, Bun 1.3.10+, [portless](https://github.com/vercel-labs/portless)
+for the dev server URL (`npm i -g portless`, `portless doctor` checks it). `vp` drives installs,
 scripts, linting, formatting and tests.
 
 ```bash
 vp i
 cp .env.example .env        # OPENROUTER_API_KEY, STRUCTURE_MODEL
-vp run dev                  # http://localhost:3000
+vp run dev                  # https://piano.localhost, in a worktree https://<branch>.piano.localhost
 ```
 
 Without `OPENROUTER_API_KEY` the player works, but new songs get no parts and

@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "portless run next dev",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
@@ -26,5 +26,6 @@
     "@types/react-dom": "^19",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
-  }
+  },
+  "portless": "piano"
 }
