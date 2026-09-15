@@ -3,6 +3,7 @@ import type { Grid } from "../grid";
 import type { Note } from "../notes";
 import type { Song } from "../song";
 import { type ChatMessage, completeStructured } from "./openrouter";
+import { segmentStructure } from "./heuristic";
 import { buildUserPrompt, SYSTEM_PROMPT } from "./prompt";
 import { fallbackStructure, type Structure, StructureSchema, validateStructure } from "./schema";
 
@@ -14,10 +15,13 @@ export type StructureResult = {
 };
 
 const MAX_ATTEMPTS = 3;
+// STRUCTURE_MODEL value that runs the local heuristic instead of a model.
+export const LOCAL_MODEL = "local";
 
 // Runs the model until it returns a valid structure for a stable time signature.
 // A changed time signature recomputes the table and asks again; a validation
 // error feeds the message back once. After MAX_ATTEMPTS the fallback applies.
+// With model "local" the deterministic heuristic answers instead, keeping the grid.
 export async function detectStructure(options: {
   grid: Grid;
   notes: readonly Note[];
@@ -29,6 +33,15 @@ export async function detectStructure(options: {
   let analysis = analyseNotes(grid, options.notes);
   const at = new Date().toISOString();
   const beatsPerBar = grid.beatsPerBar as Structure["beatsPerBar"];
+
+  if (options.model === LOCAL_MODEL) {
+    const structure = segmentStructure(analysis, beatsPerBar);
+    return {
+      structure,
+      analysis,
+      record: { model: LOCAL_MODEL, at, barFingerprints: joinLetters(analysis) },
+    };
+  }
 
   if (!options.apiKey) {
     return {
