@@ -199,10 +199,10 @@ export function Player({ initialSong }: { initialSong: Song }) {
           if (event.shiftKey) moveBlock(1);
           else jumpToBar(bar + 1);
           break;
-        case "-":
-        case "+":
-        case "=": {
-          const delta = event.key === "-" ? -TEMPO_STEP : TEMPO_STEP;
+        case "ArrowUp":
+        case "ArrowDown": {
+          event.preventDefault();
+          const delta = event.key === "ArrowDown" ? -TEMPO_STEP : TEMPO_STEP;
           const tempoPercent = Math.max(TEMPO_MIN, Math.min(TEMPO_MAX, store.tempoPercent + delta));
           engine.setTempo(tempoPercent);
           store.set({ tempoPercent });
@@ -306,7 +306,7 @@ export function Player({ initialSong }: { initialSong: Song }) {
           <b>⇧← ⇧→</b>Block
         </span>
         <span>
-          <b>− +</b>Tempo
+          <b>↑ ↓</b>Tempo
         </span>
         <span>
           <b>L R</b>Hand
