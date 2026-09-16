@@ -14,6 +14,9 @@ const LEFT_COLOR = "#4f7be8";
 const LEFT_COLOR_BLACK_KEY = "#1f3f8f";
 const RIGHT_COLOR = "#7fd97f";
 const RIGHT_COLOR_BLACK_KEY = "#2f7f34";
+// With hand colours off every note is orange.
+const PLAIN_COLOR = "#f0a03c";
+const PLAIN_COLOR_BLACK_KEY = "#8c5414";
 const KEYBOARD_HEIGHT = 72;
 const VISIBLE_BEATS = 8;
 // Gap at the end of every note so repeated notes read as two.
@@ -77,7 +80,7 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
       const muted = engine.muted;
       const loop = engine.loop;
       const loopStart = engine.loopStart();
-      const showFingers = usePlayer.getState().fingering;
+      const { fingering: showFingers, hands: showHands } = usePlayer.getState();
       const inLoop =
         loop !== null && loopStart !== null && position >= loopStart && position < loop.toBeat;
 
@@ -114,7 +117,7 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
       // Notes in view, cut off at the hit line. Sounding notes light up their keys.
       // Inside a loop only the loop's notes exist, repeated once per cycle so the
       // next pass falls in during the empty pre-roll bars.
-      const sounding = new Map<number, Hand>();
+      const sounding = new Map<number, Hand | null>();
       const to = position + VISIBLE_BEATS;
       context.save();
       context.beginPath();
@@ -134,7 +137,7 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
         const x = key.noteX + (key.noteWidth - w) / 2;
         const h = bottom - top;
         const radius = Math.min(NOTE_RADIUS_PX, w / 2, h / 2);
-        const base = noteColor(note.hand, key.black);
+        const base = noteColor(showHands ? note.hand : null, key.black);
         const gloss = context.createLinearGradient(x, 0, x + w, 0);
         gloss.addColorStop(0, base);
         gloss.addColorStop(0.5, lighten(base, GLOSS_LIGHTEN));
@@ -157,7 +160,7 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
           context.fillText(String(note.finger), x + w / 2, visibleBottom - 4);
         }
         if (beat <= position && position < beat + note.durationBeats)
-          sounding.set(note.midi, note.hand);
+          sounding.set(note.midi, showHands ? note.hand : null);
       };
       for (const note of notes) {
         if (muted[note.hand]) continue;
@@ -211,7 +214,8 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
   );
 }
 
-function noteColor(hand: Hand, blackKey: boolean): string {
+function noteColor(hand: Hand | null, blackKey: boolean): string {
+  if (hand === null) return blackKey ? PLAIN_COLOR_BLACK_KEY : PLAIN_COLOR;
   if (hand === "left") return blackKey ? LEFT_COLOR_BLACK_KEY : LEFT_COLOR;
   return blackKey ? RIGHT_COLOR_BLACK_KEY : RIGHT_COLOR;
 }
@@ -227,7 +231,9 @@ function lighten(hex: string, share: number): string {
   return `#${channel(0)}${channel(1)}${channel(2)}`;
 }
 
-function keyColor(hand: Hand | undefined, base: string): string {
+// Sounding keys take the note colour, null is a sounding key without hand colours.
+function keyColor(hand: Hand | null | undefined, base: string): string {
+  if (hand === null) return PLAIN_COLOR;
   if (hand === "left") return LEFT_COLOR;
   if (hand === "right") return RIGHT_COLOR;
   return base;

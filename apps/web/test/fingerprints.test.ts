@@ -14,7 +14,7 @@ describe("fingerprints", () => {
   test("Secunda shows the structure from the concept", () => {
     const parsed = loadTestMidi("secunda");
     const grid = { bpm: 88, beatsPerBar: 3, offsetSec: 0 };
-    const notes = assignHands(parsed, { type: "split", splitPitch: 67 }, grid);
+    const notes = assignHands(parsed, { type: "split", splitPitch: 67 });
     const totalBars = countBars(grid, notes);
     expect(totalBars).toBe(34);
     expect(scaleName(detectScale(notes))).toBe("C dorisch");
@@ -28,11 +28,7 @@ describe("fingerprints", () => {
     const parsed = loadTestMidi("ancient-stones");
     expect(parsed.tempoBpm).toBeNull();
     expect(detectHands(parsed)).toEqual({ type: "tracks" });
-    const notes = assignHands(
-      parsed,
-      { type: "tracks" },
-      { bpm: 120, beatsPerBar: 3, offsetSec: 0 },
-    );
+    const notes = assignHands(parsed, { type: "tracks" });
     expect(notes.filter((n) => n.hand === "right").length).toBe(406);
     expect(scaleName(detectScale(notes))).toBe("Gism");
     const grid = { bpm: 120, beatsPerBar: 3, offsetSec: 0 };

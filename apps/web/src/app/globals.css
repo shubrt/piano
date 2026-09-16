@@ -248,6 +248,12 @@ button:focus-visible {
   margin-right: 5px;
 }
 
+/* Key hint without effect right now, such as L R while hand colours are off. */
+.keys .off,
+.keys .off b {
+  color: #444;
+}
+
 .source {
   white-space: nowrap;
 }

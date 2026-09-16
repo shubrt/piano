@@ -58,6 +58,31 @@ vp run benchmark -- --reference anthropic/claude-opus-5
 A reference is one model answer. Check it in the player and edit the file where
 the model was wrong. The run exits with 1 when any song scores below 100.
 
+## Hands benchmark
+
+The hand assignment has its own benchmark over every song in `SONGS_DIR`
+(default `~/.piano/songs`), so it also covers songs that are not in the repo:
+
+```bash
+cd apps/web
+vp run benchmark:hands                          # console summary
+vp run benchmark:hands -- --html report.html    # plus a static HTML report
+```
+
+Truth comes from two sources. A MIDI file with two note tracks carries the
+hands, the heuristic runs on the flattened notes and is scored against the
+tracks. A `hands.json` next to a song labels single bars by the pitches the
+left hand plays, everything else in the bar is the right hand:
+
+```json
+{ "bars": { "17": ["G3", "E3", "B3", "E4", "C3"] } }
+```
+
+Every song is also linted without a reference for grips wider than a hand,
+jumps over an octave within 120 ms, crossed hands and repeated bars with a
+different hand split. The run exits with 1 when any referenced song is below
+100 %.
+
 ## Checks
 
 ```bash

@@ -35,7 +35,7 @@ let missingReference = 0;
 
 for (const song of songs) {
   const referencePath = path.join(songDir(song.id), "reference.json");
-  const notes = assignHands(parseMidi(await readMidi(song.id)), song.hands, song);
+  const notes = assignHands(parseMidi(await readMidi(song.id)), song.hands);
 
   if (recordModel && !existsSync(referencePath)) {
     const result = await detectStructure({

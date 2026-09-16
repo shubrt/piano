@@ -44,7 +44,7 @@ export function Player({ initialSong }: { initialSong: Song }) {
   // Everything derived from notes and grid. Recomputed when a correction field changes.
   const derived = useMemo(() => {
     if (!parsed) return null;
-    const notes = assignHands(parsed, song.hands, song);
+    const notes = assignHands(parsed, song.hands);
     const analysis = analyseNotes(song, notes);
     const parts = effectiveParts(song.parts, analysis.totalBars);
     const blocks = parts.flatMap((part, i) => blocksOfPart(part, i));
@@ -210,10 +210,19 @@ export function Player({ initialSong }: { initialSong: Song }) {
           store.set({ tempoPercent });
           break;
         }
+        case "h":
+        case "H": {
+          // Turning the colours off also unmutes, nothing stays hidden.
+          const muted = { left: false, right: false };
+          engine.muted = muted;
+          store.set({ hands: !store.hands, muted });
+          break;
+        }
         case "l":
         case "L":
         case "r":
         case "R": {
+          if (!store.hands) break;
           const hand = event.key.toLowerCase() === "l" ? "left" : "right";
           const muted = { ...store.muted, [hand]: !store.muted[hand] };
           engine.muted = muted;
@@ -251,6 +260,7 @@ export function Player({ initialSong }: { initialSong: Song }) {
             <span className="dim">Tempo</span> {state.tempoPercent} % · Takt{" "}
             {Math.min(state.currentBar, derived.analysis.totalBars)} von{" "}
             {derived.analysis.totalBars}
+            {state.hands ? " · Hände" : ""}
             {state.muted.left ? " · links stumm" : ""}
             {state.muted.right ? " · rechts stumm" : ""}
             {state.metronome ? " · Metronom" : ""}
@@ -311,6 +321,9 @@ export function Player({ initialSong }: { initialSong: Song }) {
           <b>↑ ↓</b>Tempo
         </span>
         <span>
+          <b>H</b>Hände
+        </span>
+        <span className={state.hands ? undefined : "off"}>
           <b>L R</b>Hand
         </span>
         <span>

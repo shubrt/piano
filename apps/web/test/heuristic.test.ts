@@ -12,7 +12,7 @@ describe("local structure heuristic", () => {
   test("Ancient Stones: bass pattern parts, the two-bar transition and octave themes", () => {
     const grid = { bpm: 120, beatsPerBar: 3, offsetSec: 0 };
     const parsed = loadTestMidi("ancient-stones");
-    const analysis = analyseNotes(grid, assignHands(parsed, { type: "tracks" }, grid));
+    const analysis = analyseNotes(grid, assignHands(parsed, { type: "tracks" }));
     const structure = segmentStructure(analysis, 3);
     expect(validateStructure(structure, analysis.totalBars)).toBeNull();
     expect(bars(structure.parts)).toEqual([
@@ -35,10 +35,7 @@ describe("local structure heuristic", () => {
   test("Secunda: phrases from right-hand repeats over a static bass", () => {
     const grid = { bpm: 88, beatsPerBar: 3, offsetSec: 0 };
     const parsed = loadTestMidi("secunda");
-    const analysis = analyseNotes(
-      grid,
-      assignHands(parsed, { type: "split", splitPitch: 67 }, grid),
-    );
+    const analysis = analyseNotes(grid, assignHands(parsed, { type: "split", splitPitch: 67 }));
     const structure = segmentStructure(analysis, 3);
     expect(validateStructure(structure, analysis.totalBars)).toBeNull();
     expect(bars(structure.parts)).toEqual([

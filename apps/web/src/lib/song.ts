@@ -15,7 +15,7 @@ export const PartSchema = z.object({
 export type Part = z.infer<typeof PartSchema>;
 
 export const HandsSchema = z.discriminatedUnion("type", [
-  // One MIDI track, split found per bar at the largest gap between the hands.
+  // One MIDI track, hands found per note from reach, movement and register.
   z.object({ type: z.literal("auto") }),
   // One MIDI track, fixed split: everything below splitPitch is the left hand.
   z.object({ type: z.literal("split"), splitPitch: z.number().int().min(0).max(127) }),
