@@ -13,6 +13,9 @@ type PlayerState = {
   metronome: boolean;
   // Finger numbers on the falling notes, display only.
   fingering: boolean;
+  // Hand colours on the notes. Off shows every note in one colour and turns
+  // the per-hand mute keys off.
+  hands: boolean;
   set: (patch: Partial<Omit<PlayerState, "set">>) => void;
 };
 
@@ -28,5 +31,6 @@ export const usePlayer = create<PlayerState>((set) => ({
   loop: null,
   metronome: false,
   fingering: false,
+  hands: false,
   set: (patch) => set(patch),
 }));
