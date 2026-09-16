@@ -47,6 +47,11 @@ export const SongSchema = z.object({
   beatsPerBar: z.literal([...BEATS_PER_BAR]),
   offsetSec: z.number(),
   hands: HandsSchema,
+  // Shorten every note in the display to the next onset of the same hand. For
+  // recordings played with the pedal, where the transcription writes the ring
+  // time instead of the key time. Optional rather than defaulted so a partial
+  // patch does not reset it. Playback keeps the full length either way.
+  pedalTrim: z.boolean().optional(),
   parts: z.array(PartSchema).default([]),
   analysis: AnalysisSchema.optional(),
 });
@@ -59,5 +64,6 @@ export const SongPatchSchema = SongSchema.pick({
   beatsPerBar: true,
   offsetSec: true,
   hands: true,
+  pedalTrim: true,
 }).partial();
 export type SongPatch = z.infer<typeof SongPatchSchema>;

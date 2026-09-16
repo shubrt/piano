@@ -7,6 +7,7 @@ import { type Block, blockRepeats, blocksOfPart, effectiveParts } from "@/lib/bl
 import { barOfBeat, barStartBeat, beatSeconds, timeToBeat } from "@/lib/grid";
 import { parseMidi, type ParsedMidi } from "@/lib/midi";
 import { assignHands } from "@/lib/notes";
+import { trimForDisplay } from "@/lib/trim";
 import { assignFingering } from "@/lib/fingering";
 import { type Part, type Song, SongSchema, type SongPatch } from "@/lib/song";
 import { Corrections } from "./corrections";
@@ -48,7 +49,8 @@ export function Player({ initialSong }: { initialSong: Song }) {
     const parts = effectiveParts(song.parts, analysis.totalBars);
     const blocks = parts.flatMap((part, i) => blocksOfPart(part, i));
     const fingers = assignFingering(notes);
-    const beatNotes: BeatNote[] = notes
+    // The falling notes show key time, the engine plays the full ring time.
+    const beatNotes: BeatNote[] = trimForDisplay(notes, song.pedalTrim ?? false)
       .map((n, i) => ({
         finger: fingers[i],
         beat: timeToBeat(song, n.time),
