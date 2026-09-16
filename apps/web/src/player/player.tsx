@@ -168,13 +168,26 @@ export function Player({ initialSong }: { initialSong: Song }) {
       const store = usePlayer.getState();
       const { totalBars } = derived.analysis;
       const bar = Math.min(totalBars, barOfBeat(song, engine.position()));
-      // Stepping back past bar 1 lands in the empty bar before it.
-      const jumpToBar = (target: number) =>
+      // Stepping back past bar 1 lands in the empty bar before it. With a loop
+      // the keys stay inside the loop cycle: the empty pre-roll bars at the
+      // front, the loop's last bar at the back.
+      const jumpToBar = (target: number) => {
+        const { loop } = store;
+        const start = engine.loopStart();
+        if (loop && start !== null) {
+          engine.seek(
+            target < loop.fromBar ? start : barStartBeat(song, Math.min(loop.toBar, target)),
+          );
+          return;
+        }
         engine.seek(
           target < 1 ? -engine.prerollBeats() : barStartBeat(song, Math.min(totalBars, target)),
         );
+      };
+      // A looped block counts from the loop, the position may sit in its pre-roll.
       const moveBlock = (direction: 1 | -1) => {
-        const index = derived.blocks.findIndex((b) => bar >= b.fromBar && bar <= b.toBar);
+        const from = store.loop?.fromBar ?? bar;
+        const index = derived.blocks.findIndex((b) => from >= b.fromBar && from <= b.toBar);
         const next = derived.blocks[index + direction];
         if (!next) return;
         if (store.loop) loopBlock(next);
