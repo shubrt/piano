@@ -1,5 +1,6 @@
 import { createEnv } from "@t3-oss/env-core";
 import { existsSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { z } from "zod";
 
@@ -13,8 +14,10 @@ export const env = createEnv({
   server: {
     OPENROUTER_API_KEY: z.string().optional(),
     STRUCTURE_MODEL: z.string().default("anthropic/claude-opus-5"),
-    // Folder with one subfolder per song, relative to the app directory.
-    SONGS_DIR: z.string().default("songs"),
+    // Folder with one subfolder per song. Lives outside the repository so every
+    // worktree sees the same songs. The repo's own songs/ holds only the two
+    // benchmark references, the benchmark script points SONGS_DIR there.
+    SONGS_DIR: z.string().default(path.join(os.homedir(), ".piano", "songs")),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

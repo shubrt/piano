@@ -3,8 +3,8 @@ import path from "node:path";
 import { env } from "./env";
 import { type Song, SongSchema } from "./song";
 
-// Songs are folders under SONGS_DIR: notes.mid plus song.json. No database,
-// the song list is a directory listing.
+// Songs are folders under SONGS_DIR (default ~/.piano/songs): notes.mid plus
+// song.json. No database, the song list is a directory listing.
 
 export function songsDir(): string {
   return path.resolve(process.cwd(), env.SONGS_DIR);

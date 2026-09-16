@@ -3,7 +3,7 @@ tsconfig.tsbuildinfo
 # Python import environment
 import/.venv/
 import/__pycache__/
-# Song folders created by import or drop are user data. The two test songs are committed.
+# User songs live in ~/.piano/songs. songs/ here holds only the two benchmark references.
 songs/*
 !songs/secunda/
 !songs/ancient-stones/

@@ -6,8 +6,10 @@ detection for practicing piano bar by bar and block by block.
 ## Structure
 
 - `apps/web` the Next.js app: pages, API routes, analysis, player. Songs live
-  in `apps/web/songs/<id>/` as `notes.mid` plus `song.json`. The Python side of
-  the YouTube import (yt-dlp, ffmpeg, Transkun) is in `apps/web/import/`.
+  in `~/.piano/songs/<id>/` as `notes.mid` plus `song.json`, shared by every
+  worktree (`SONGS_DIR` overrides the folder). `apps/web/songs/` holds only the
+  two benchmark reference songs. The Python side of the YouTube import (yt-dlp,
+  ffmpeg, Transkun) is in `apps/web/import/`.
 - `libs/` shared packages, currently empty
 - `tools/typescript` the shared `@tool/tsconfig` presets: `core`, `lib`, `react`
 
