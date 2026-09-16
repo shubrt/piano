@@ -55,7 +55,7 @@ const DEFAULT_SPLIT = 60;
 // A gap between the hands is at least a fourth.
 const MIN_GAP = 5;
 // Notes one hand holds at the same time span at most an octave plus a third.
-const MAX_HAND_SPAN = 14;
+export const MAX_HAND_SPAN = 14;
 
 type TimedNote = { time: number; duration: number; midi: number };
 

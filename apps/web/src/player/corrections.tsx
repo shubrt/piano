@@ -9,8 +9,8 @@ type Props = {
   onReanalyze: () => Promise<void>;
 };
 
-// BPM, time signature, offset and split pitch (empty = automatic). Every change moves the grid at
-// once and is saved. "Struktur neu" runs the structure heuristic again with that grid.
+// BPM, time signature, offset, split pitch (empty = automatic) and the pedal trim. Every change
+// moves the grid at once and is saved. "Struktur neu" runs the structure heuristic again with that grid.
 export function Corrections({ song, onPatch, onReanalyze }: Props) {
   const [busy, setBusy] = useState(false);
 
@@ -89,6 +89,14 @@ export function Corrections({ song, onPatch, onReanalyze }: Props) {
           />
         </label>
       ) : null}
+      <label title="Noten enden in der Anzeige beim nächsten Ton derselben Hand. Für Aufnahmen mit Pedal, bei denen die Erkennung das Nachklingen statt des Tastendrucks schreibt.">
+        <input
+          type="checkbox"
+          checked={song.pedalTrim ?? false}
+          onChange={(e) => void onPatch({ pedalTrim: e.target.checked })}
+        />
+        Pedal
+      </label>
       <button
         type="button"
         disabled={busy}
