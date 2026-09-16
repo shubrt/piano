@@ -24,12 +24,12 @@ export async function analyzeNewSong(
     ? { bpm: roundBpm(tempoEvent), offsetSec: 0 }
     : { bpm: detected.bpm, offsetSec: detected.offsetSec };
   // Starting guess for the time signature; the model may still change it.
-  const notesForMeter = assignHands(parsed, hands, { ...tempo, beatsPerBar: 12 });
+  const notesForMeter = assignHands(parsed, hands);
   const beatsPerBar = suggestBeatsPerBar(
     onsetHistogram({ ...tempo, beatsPerBar: 12 }, notesForMeter),
   );
   const grid = { ...tempo, beatsPerBar };
-  const notes = assignHands(parsed, hands, grid);
+  const notes = assignHands(parsed, hands);
   const result = await detectStructure({
     grid,
     notes,
@@ -56,7 +56,7 @@ export async function reanalyzeStructure(
   midi: Uint8Array,
   options: { ai: boolean },
 ): Promise<Song> {
-  const notes = assignHands(parseMidi(midi), song.hands, song);
+  const notes = assignHands(parseMidi(midi), song.hands);
   const result = await detectStructure({
     grid: song,
     notes,

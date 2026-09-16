@@ -8,6 +8,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "benchmark": "SONGS_DIR=songs bun --env-file=../../.env scripts/benchmark.ts",
+    "benchmark:hands": "bun --env-file=../../.env scripts/benchmark-hands.ts",
     "clean": "rm -rf .next"
   },
   "dependencies": {

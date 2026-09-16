@@ -1,57 +1,61 @@
 import { describe, expect, test } from "vite-plus/test";
-import { splitPerBar } from "../src/lib/notes";
+import { assignAuto } from "../src/lib/hands";
 
-const grid = { bpm: 120, beatsPerBar: 4, offsetSec: 0 };
-const beat = (b: number) => (b * 60) / grid.bpm;
+// Beats at 120 BPM.
+const beat = (b: number) => b / 2;
+const at = (b: number, midi: number) => ({ time: beat(b), midi });
 
-describe("splitPerBar", () => {
+describe("assignAuto", () => {
   test("follows the hands when both move down an octave", () => {
-    const notes: { time: number; duration: number; midi: number }[] = [];
-    // Bars 1 and 2: left around C3, right around C5. Bars 3 and 4: an octave lower.
+    const notes: { time: number; midi: number }[] = [];
     for (let bar = 0; bar < 4; bar++) {
       const shift = bar < 2 ? 0 : -12;
       for (let b = 0; b < 4; b++) {
-        notes.push({
-          time: beat(bar * 4 + b),
-          duration: beat(0.5),
-          midi: 48 + shift + (b % 2) * 7,
-        });
-        notes.push({ time: beat(bar * 4 + b), duration: beat(0.5), midi: 72 + shift + b });
+        notes.push(at(bar * 4 + b, 48 + shift + (b % 2) * 7));
+        notes.push(at(bar * 4 + b, 72 + shift + b));
       }
     }
-    const split = splitPerBar(notes, grid);
-    expect(split[0]).toBeGreaterThan(55);
-    expect(split[0]).toBeLessThan(72);
-    expect(split[3]).toBeGreaterThan(43);
-    expect(split[3]).toBeLessThan(60);
+    // Notes were pushed in pairs, lower voice first.
+    const hands = assignAuto(notes);
+    hands.forEach((hand, i) => expect(hand).toBe(i % 2 === 0 ? "left" : "right"));
   });
 
-  test("prefers the gap whose hands can hold their notes", () => {
-    // E2 held under B3 spans 19 semitones, so B3 cannot be left even though
-    // the gap above it lies closer to the default split at C4.
+  test("an arpeggio stays in the left hand under a right-hand chord", () => {
+    // G3 B3 E4 on the beats, the right hand plays G5 and A5 above. E4 sounds
+    // with A5, 17 semitones apart, so it cannot be right.
     const notes = [
-      { time: beat(0), duration: beat(2), midi: 40 },
-      { time: beat(0), duration: beat(1), midi: 59 },
-      { time: beat(1), duration: beat(0.5), midi: 67 },
-      { time: beat(2), duration: beat(1), midi: 69 },
+      at(0, 55),
+      at(0, 79),
+      at(1, 59),
+      at(1, 79),
+      { time: beat(2), midi: 64 },
+      { time: beat(2) + 0.02, midi: 81 },
+      at(3, 48),
     ];
-    const split = splitPerBar(notes, grid)[0]!;
-    expect(split).toBeGreaterThan(40);
-    expect(split).toBeLessThan(59);
+    expect(assignAuto(notes)).toEqual(["left", "right", "left", "right", "left", "right", "left"]);
   });
 
-  test("a bar with one hand inherits the split of its neighbours", () => {
-    const notes = [
-      { time: beat(0), duration: beat(0.5), midi: 48 },
-      { time: beat(0), duration: beat(0.5), midi: 76 },
-      // Bar 2: only the right hand, low but above the previous split.
-      { time: beat(4), duration: beat(0.5), midi: 64 },
-      { time: beat(5), duration: beat(0.5), midi: 65 },
-      { time: beat(8), duration: beat(0.5), midi: 48 },
-      { time: beat(8), duration: beat(0.5), midi: 76 },
-    ];
-    const split = splitPerBar(notes, grid);
-    expect(split[1]).toBe(split[0]);
-    expect(64).toBeGreaterThanOrEqual(split[1]!);
+  test("a slow lone line stays in one hand even when it climbs past the middle", () => {
+    // D3 F4 D4 A3 twice, nothing else. One hand plays it.
+    const line = [50, 65, 62, 57, 50, 65, 62, 57].map((midi, i) => ({ time: i * 0.4, midi }));
+    const hands = assignAuto(line);
+    expect(new Set(hands).size).toBe(1);
+  });
+
+  test("fast alternating bass and arpeggio split by register, not by order", () => {
+    // Bass C#2/G#2 every 160 ms, arpeggio sixteenths C#3 E3 G#3 C#4 in between.
+    // G#2 lies within reach of both hands and is not asserted.
+    const notes: { time: number; midi: number }[] = [];
+    const bass = [37, 44];
+    const arpeggio = [49, 52, 56, 61];
+    for (let i = 0; i < 16; i++) {
+      notes.push({ time: i * 0.16, midi: bass[i % 2]! });
+      notes.push({ time: i * 0.16 + 0.08, midi: arpeggio[i % 4]! });
+    }
+    const hands = assignAuto(notes);
+    notes.forEach((n, i) => {
+      if (n.midi === 37) expect(hands[i]).toBe("left");
+      if (n.midi >= 49) expect(hands[i]).toBe("right");
+    });
   });
 });
