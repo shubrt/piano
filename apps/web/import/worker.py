@@ -78,6 +78,32 @@ def transcribe(wav: Path, mid: Path) -> None:
     subprocess.run([str(transkun), str(wav), str(mid)], check=True, capture_output=True, text=True)
 
 
+def heartbeat(job_id: str, stop: threading.Event) -> None:
+    """Touches the row every 30 s while a job runs. Railway puts a serverless
+    service to sleep after five minutes without outbound traffic, and a
+    transcription on CPU is exactly that. The updates keep the container awake."""
+    while not stop.wait(30):
+        try:
+            with connect() as conn:
+                conn.execute("UPDATE import_jobs SET updated_at = now() WHERE id = %s", [job_id])
+        except Exception as error:  # noqa: BLE001
+            sys.stderr.write(f"heartbeat failed: {error}\n")
+
+
+def requeue_interrupted() -> None:
+    """Jobs the previous container left in audio or transcribe (it was stopped
+    or crashed mid-way) start over."""
+    with connect() as conn:
+        rows = conn.execute(
+            "UPDATE import_jobs SET status = 'queued', updated_at = now() "
+            "WHERE status IN ('audio', 'transcribe') RETURNING id"
+        ).fetchall()
+    for (job_id,) in rows:
+        jobs.put(job_id)
+    if rows:
+        print(f"requeued {len(rows)} interrupted job(s)", flush=True)
+
+
 def run_job(job_id: str) -> None:
     with connect() as conn:
         row = conn.execute(
@@ -86,6 +112,8 @@ def run_job(job_id: str) -> None:
     if row is None:
         return
     url, audio_bytes, file_name = row
+    stop = threading.Event()
+    threading.Thread(target=heartbeat, args=(job_id, stop), daemon=True).start()
     with tempfile.TemporaryDirectory() as folder:
         tmp = Path(folder)
         try:
@@ -107,7 +135,17 @@ def run_job(job_id: str) -> None:
             tail = " | ".join((error.stderr or str(error)).strip().split("\n")[-5:])
             set_status(job_id, "error", error=f"{Path(error.cmd[0]).name} fehlgeschlagen: {tail}")
         except Exception as error:  # noqa: BLE001, one job must not take the worker down
-            set_status(job_id, "error", error=str(error)[:2000])
+            set_status(job_id, "error", error=describe(error))
+        finally:
+            stop.set()
+
+
+def describe(error: Exception) -> str:
+    """yt-dlp's bot check is the one error users can act on themselves."""
+    text = str(error)
+    if "Sign in to confirm" in text:
+        return "YouTube blockiert Downloads von diesem Server. Audiodatei stattdessen auf die Seite ziehen."
+    return text[:2000]
 
 
 def work_forever() -> None:
@@ -157,6 +195,7 @@ class DualStackServer(ThreadingHTTPServer):
 
 
 if __name__ == "__main__":
+    requeue_interrupted()
     threading.Thread(target=work_forever, daemon=True).start()
     server = DualStackServer(("::", PORT), Handler)
     print(f"worker listening on :{PORT}", flush=True)

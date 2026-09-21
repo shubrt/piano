@@ -61,20 +61,28 @@ the browser polls the job. Locally the app finds the worker through
 ## Hosting
 
 Production is `https://piano.shubrt.me` on Railway, project `piano`, three
-services from this repository: `web` (`apps/web/Dockerfile`), `worker`
-(`apps/web/import/Dockerfile`) and a Railway Postgres. Every push to `main`
-deploys, every pull request gets its own environment with an empty database.
-The `railway.json` next to each Dockerfile holds build, healthcheck and
-watch paths; `web` sleeps only in PR environments, `worker` always sleeps
-between imports. Variables per service:
+services: `web` (`apps/web/Dockerfile`), `worker` (`apps/web/import/Dockerfile`)
+and a Railway Postgres. Every push to `main` deploys, every pull request gets
+its own environment with an empty database.
 
-| Service | Variables                                                                                                                                                                                       |
-| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| web     | `DATABASE_URL=${{postgres.DATABASE_URL}}`, `PUBLIC_URL`, `SESSION_SECRET`, `WORKER_URL=http://${{worker.RAILWAY_PRIVATE_DOMAIN}}:8000`, `WORKER_TOKEN`, `OPENROUTER_API_KEY`, `STRUCTURE_MODEL` |
-| worker  | `DATABASE_URL=${{postgres.DATABASE_URL}}`, `WORKER_TOKEN`, `PORT=8000`                                                                                                                          |
+The project is declared in `.railway/railway.ts` (Railway infrastructure as
+code): builders, watch paths, healthchecks, domain, variables. Secrets are
+`preserve()` and live only in Railway. Change the file, then from the repo root:
 
-PR environments leave `PUBLIC_URL` unset and take the origin from the request. DNS
-is a DNS-only CNAME plus the TXT record Railway shows, both at Cloudflare.
+```bash
+railway config plan     # diff against the linked project
+railway config apply    # apply it
+```
+
+`worker` sleeps between imports in every environment. `web` stays awake in
+production and sleeps in PR environments: the file reads `ctx.environment`,
+and the `railway-pr-env` GitHub workflow applies it to each PR environment
+once Railway has created it (secret `RAILWAY_API_TOKEN`, an account token).
+The worker touches its job row every 30 seconds so Railway does not put it
+to sleep during a transcription. No `PUBLIC_URL` is set
+on Railway, the login takes the origin from each request, so the custom
+domain, the generated domain and PR domains all work. DNS is a DNS-only CNAME
+plus the TXT record Railway shows, both at Cloudflare.
 
 ## Structure benchmark
 
