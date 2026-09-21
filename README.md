@@ -75,9 +75,11 @@ railway config apply    # apply it
 ```
 
 `worker` sleeps between imports in every environment. `web` stays awake in
-production and sleeps in PR environments, which the root `railway.json`
-adds (the `environments.pr` block, the only thing config-as-code still does
-here; Railway stops reading these files on 2026-12-01). No `PUBLIC_URL` is set
+production and sleeps in PR environments: the file reads `ctx.environment`,
+and the `railway-pr-env` GitHub workflow applies it to each PR environment
+once Railway has created it (secret `RAILWAY_API_TOKEN`, an account token).
+The worker touches its job row every 30 seconds so Railway does not put it
+to sleep during a transcription. No `PUBLIC_URL` is set
 on Railway, the login takes the origin from each request, so the custom
 domain, the generated domain and PR domains all work. DNS is a DNS-only CNAME
 plus the TXT record Railway shows, both at Cloudflare.

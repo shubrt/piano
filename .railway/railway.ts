@@ -1,12 +1,19 @@
+import { env as processEnv } from "node:process";
 import { defineRailway, github, postgres, preserve, project, service, volume } from "railway/iac";
 
 // Railway project "piano" as code. Preview with `railway config plan`, apply
 // with `railway config apply`, both from the repository root with the CLI
 // linked to the project. Secrets stay in Railway (preserve()), everything else
-// is spelled out here. PR environments duplicate production; the root
-// railway.json adds sleeping for them.
-export default defineRailway(() => {
-  const repo = github("shubrt/piano", { checkSuites: false });
+// is spelled out here. PR environments duplicate production, the
+// railway-pr-env workflow applies this file to them so web sleeps there.
+export default defineRailway((ctx) => {
+  const production = ctx.isEnvironment("production");
+  // Production deploys main. A PR environment deploys the PR's branch, which
+  // the railway-pr-env workflow passes in PR_BRANCH.
+  const repo = github("shubrt/piano", {
+    branch: production ? "main" : (processEnv.PR_BRANCH ?? "main"),
+    checkSuites: false,
+  });
   const region = "europe-west4-drams3a";
 
   const db = postgres("Postgres", { region });
@@ -29,7 +36,7 @@ export default defineRailway(() => {
     },
     healthcheck: "/health",
     replicas: { [region]: 1 },
-    deploy: { restartPolicyType: "ON_FAILURE", restartPolicyMaxRetries: 3, sleepApplication: true },
+    deploy: { restartPolicyMaxRetries: 3, sleepApplication: true },
     env: {
       DATABASE_URL: db.env.DATABASE_URL,
       PORT: "8000",
@@ -56,8 +63,9 @@ export default defineRailway(() => {
     },
     healthcheck: "/api/health",
     replicas: { [region]: 1 },
-    deploy: { restartPolicyType: "ON_FAILURE", restartPolicyMaxRetries: 3 },
-    domains: ["piano.shubrt.me"],
+    // Awake in production, asleep between requests everywhere else.
+    deploy: { restartPolicyMaxRetries: 3, ...(production ? {} : { sleepApplication: true }) },
+    domains: production ? ["piano.shubrt.me"] : [],
     env: {
       DATABASE_URL: db.env.DATABASE_URL,
       WORKER_URL: "http://${{worker.RAILWAY_PRIVATE_DOMAIN}}:8000",
