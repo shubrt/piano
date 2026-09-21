@@ -17,6 +17,7 @@ Requires ffmpeg on PATH. yt-dlp is a Python dependency.
 
 import os
 import queue
+import socket
 import subprocess
 import sys
 import tempfile
@@ -29,6 +30,7 @@ import yt_dlp
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 TOKEN = os.environ["WORKER_TOKEN"]
+# portless (locally) and Railway both hand the port over in PORT.
 PORT = int(os.environ.get("PORT", "8000"))
 
 jobs: "queue.Queue[str]" = queue.Queue()
@@ -143,10 +145,19 @@ class Handler(BaseHTTPRequestHandler):
         sys.stderr.write(f"{self.address_string()} {format % args}\n")
 
 
+class DualStackServer(ThreadingHTTPServer):
+    """Listens on IPv6 and IPv4: Railway's private network is IPv6 only, the
+    portless proxy connects over 127.0.0.1."""
+
+    address_family = socket.AF_INET6
+
+    def server_bind(self) -> None:
+        self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        super().server_bind()
+
+
 if __name__ == "__main__":
     threading.Thread(target=work_forever, daemon=True).start()
-    # Dual-stack bind: Railway's private network is IPv6 only.
-    ThreadingHTTPServer.address_family = __import__("socket").AF_INET6
-    server = ThreadingHTTPServer(("::", PORT), Handler)
+    server = DualStackServer(("::", PORT), Handler)
     print(f"worker listening on :{PORT}", flush=True)
     server.serve_forever()

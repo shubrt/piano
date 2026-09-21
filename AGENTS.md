@@ -16,6 +16,8 @@ URL derived from the branch name: `https://<branch-suffix>.piano.localhost`
    `portless get piano` (run inside the repo) appears in `portless list`.
 2. If not, start `vp run dev` as a background process owned by your session.
    Do not detach it (no `nohup`, no `setsid`), the session must stay its parent.
+   Imports need the worker too: `vp run dev:worker` the same way, it registers
+   `https://<branch-suffix>.piano-worker.localhost`.
 3. Wait until the URL answers, then put it as the last line of your final
    message so the user can click it.
 4. Never stop the server yourself. It dies with the session, and portless then

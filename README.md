@@ -51,11 +51,12 @@ YouTube and audio imports run in the worker. Locally:
 ```bash
 brew install ffmpeg uv
 cd apps/web/import && uv python install 3.12 && uv sync
-vp run dev:worker           # http://localhost:8000, reads DATABASE_URL and WORKER_TOKEN from .env
+vp run dev:worker           # https://<branch>.piano-worker.localhost through portless
 ```
 
 The web app inserts a row into `import_jobs` and wakes the worker over HTTP;
-the browser polls the job. Without a GPU a song takes one to three minutes.
+the browser polls the job. Locally the app finds the worker through
+`portless get piano-worker`, so both run under the same worktree prefix. Without a GPU a song takes one to three minutes.
 
 ## Hosting
 

@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "portless run next dev",
-    "dev:worker": "cd import && uv run --env-file=../../../.env worker.py",
+    "dev": "NODE_USE_SYSTEM_CA=1 portless run next dev",
+    "dev:worker": "cd import && portless run --name piano-worker uv run --env-file=../../../.env worker.py",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",

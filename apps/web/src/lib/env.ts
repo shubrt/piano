@@ -1,4 +1,5 @@
 import { createEnv } from "@t3-oss/env-core";
+import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -21,8 +22,9 @@ export const env = createEnv({
     SESSION_SECRET: z.string().min(32),
     SHOO_BASE_URL: z.string().url().default("https://shoo.dev"),
     // The Python worker that turns audio into MIDI. Private network on Railway,
-    // uv run worker.py locally.
-    WORKER_URL: z.string().url().default("http://localhost:8000"),
+    // unset locally: vp run dev:worker registers it with portless and the URL
+    // comes from there.
+    WORKER_URL: z.string().url().default(portlessWorkerUrl()),
     // Shared secret the worker requires on every job request.
     WORKER_TOKEN: z.string().min(1),
     OPENROUTER_API_KEY: z.string().optional(),
@@ -35,3 +37,15 @@ export const env = createEnv({
   // next build imports the routes without a database; the Dockerfile sets this.
   skipValidation: process.env.SKIP_ENV_VALIDATION === "1",
 });
+
+// https://<worktree>.piano-worker.localhost, the route dev:worker takes. The
+// dev script sets NODE_USE_SYSTEM_CA so fetch trusts portless' certificate.
+// Outside dev the variable must be set, the fallback then only fails validation.
+function portlessWorkerUrl(): string {
+  if (process.env.NODE_ENV === "production") return "";
+  try {
+    return execFileSync("portless", ["get", "piano-worker"], { encoding: "utf8" }).trim();
+  } catch {
+    return "";
+  }
+}
