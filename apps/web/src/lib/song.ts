@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-// A song is a folder songs/<id>/ with notes.mid and this song.json. Bars, blocks,
-// repeats and the scale are derived from the MIDI and this grid at load time.
+// A song is a row in the songs table: this record plus the MIDI bytes. Bars,
+// blocks, repeats and the scale are derived from the MIDI and this grid at load time.
 
 export const BARS_PER_BLOCK = [2, 4, 8] as const;
 export const BEATS_PER_BAR = [3, 4, 6] as const;

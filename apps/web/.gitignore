@@ -3,7 +3,7 @@ tsconfig.tsbuildinfo
 # Python import environment
 import/.venv/
 import/__pycache__/
-# User songs live in ~/.piano/songs. songs/ here holds only the two benchmark references.
+# Songs live in Postgres. songs/ here holds only the two benchmark references.
 songs/*
 !songs/secunda/
 !songs/ancient-stones/

@@ -5,20 +5,33 @@ import path from "node:path";
 import { z } from "zod";
 
 // The .env lives in the monorepo root (t3.json symlinks it into worktrees).
-// Next only reads the app folder, so load the root file by hand first. Bun
-// below 1.3.10 lacks loadEnvFile; the benchmark script passes --env-file instead.
+// Next only reads the app folder, so load the root file by hand first. In the
+// Docker image the variables come from Railway and the file does not exist.
 const rootEnv = path.resolve(process.cwd(), "../../.env");
 if (existsSync(rootEnv) && typeof process.loadEnvFile === "function") process.loadEnvFile(rootEnv);
 
 export const env = createEnv({
   server: {
+    // Songs, import jobs and nothing else. Railway's Postgres provides the URL.
+    DATABASE_URL: z.string().url(),
+    // Origin the browser uses. Shoo binds the login to it and the session
+    // cookie is only Secure on https, so local dev runs on http://localhost:3000.
+    PUBLIC_URL: z.string().url().default("http://localhost:3000"),
+    // Signs the session cookie, at least 32 bytes.
+    SESSION_SECRET: z.string().min(32),
+    SHOO_BASE_URL: z.string().url().default("https://shoo.dev"),
+    // The Python worker that turns audio into MIDI. Private network on Railway,
+    // uv run worker.py locally.
+    WORKER_URL: z.string().url().default("http://localhost:8000"),
+    // Shared secret the worker requires on every job request.
+    WORKER_TOKEN: z.string().min(1),
     OPENROUTER_API_KEY: z.string().optional(),
     STRUCTURE_MODEL: z.string().default("anthropic/claude-opus-5"),
-    // Folder with one subfolder per song. Lives outside the repository so every
-    // worktree sees the same songs. The repo's own songs/ holds only the two
-    // benchmark references, the benchmark script points SONGS_DIR there.
+    // Song folders for the benchmarks only. The app itself reads Postgres.
     SONGS_DIR: z.string().default(path.join(os.homedir(), ".piano", "songs")),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,
+  // next build imports the routes without a database; the Dockerfile sets this.
+  skipValidation: process.env.SKIP_ENV_VALIDATION === "1",
 });

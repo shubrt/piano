@@ -4,17 +4,23 @@
   "type": "module",
   "scripts": {
     "dev": "portless run next dev",
+    "dev:worker": "cd import && uv run --env-file=../../../.env worker.py",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "benchmark": "SONGS_DIR=songs bun --env-file=../../.env scripts/benchmark.ts",
     "benchmark:hands": "bun --env-file=../../.env scripts/benchmark-hands.ts",
-    "clean": "rm -rf .next"
+    "clean": "rm -rf .next",
+    "db:generate": "drizzle-kit generate",
+    "import-songs": "bun --env-file=../../.env scripts/import-songs.ts"
   },
   "dependencies": {
     "@t3-oss/env-core": "catalog:",
     "@tonejs/midi": "^2.0.28",
+    "drizzle-orm": "^0.45.3",
+    "jose": "^6.2.12",
     "next": "^16.3.5",
+    "pg": "^8.23.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "smplr": "^1.0.0",
@@ -24,8 +30,10 @@
   "devDependencies": {
     "@tool/tsconfig": "workspace:*",
     "@types/node": "^24",
+    "@types/pg": "^8.21.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.11",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
   },

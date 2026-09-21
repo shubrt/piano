@@ -10,6 +10,8 @@ The dev server runs through portless, so each git worktree gets its own stable
 URL derived from the branch name: `https://<branch-suffix>.piano.localhost`
 (main checkout: `https://piano.localhost`).
 
+0. Postgres must be up: `docker compose up -d` in the repo (one shared
+   container for every worktree).
 1. Check whether this worktree's server is already up: the URL from
    `portless get piano` (run inside the repo) appears in `portless list`.
 2. If not, start `vp run dev` as a background process owned by your session.

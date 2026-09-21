@@ -1,37 +1,30 @@
-import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { env } from "./env";
+import { eq } from "drizzle-orm";
+import { db, schema } from "./db";
 import { type Song, SongSchema } from "./song";
 
-// Songs are folders under SONGS_DIR (default ~/.piano/songs): notes.mid plus
-// song.json. No database, the song list is a directory listing.
-
-export function songsDir(): string {
-  return path.resolve(process.cwd(), env.SONGS_DIR);
-}
-
-export function songDir(id: string): string {
-  return path.join(songsDir(), id);
-}
+// Songs live in the songs table: metadata as jsonb, the MIDI as bytea. Every
+// signed-in user sees every song.
 
 export async function listSongs(): Promise<Song[]> {
-  await mkdir(songsDir(), { recursive: true });
-  const entries = await readdir(songsDir(), { withFileTypes: true });
+  const rows = await db
+    .select({ id: schema.songs.id, title: schema.songs.title, data: schema.songs.data })
+    .from(schema.songs);
   const songs: Song[] = [];
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const song = await readSong(entry.name).catch((error: unknown) => {
-      console.warn(`Skipping song folder ${entry.name}:`, error);
-      return null;
-    });
-    if (song) songs.push(song);
+  for (const row of rows) {
+    const song = SongSchema.safeParse({ id: row.id, title: row.title, ...row.data });
+    if (song.success) songs.push(song.data);
+    else console.warn(`Skipping song ${row.id}:`, song.error.message);
   }
   return songs.sort((a, b) => a.title.localeCompare(b.title, "de"));
 }
 
 export async function readSong(id: string): Promise<Song> {
-  const raw = await readFile(path.join(songDir(id), "song.json"), "utf8");
-  return SongSchema.parse(JSON.parse(raw));
+  const row = await db.query.songs.findFirst({
+    where: eq(schema.songs.id, id),
+    columns: { id: true, title: true, data: true },
+  });
+  if (!row) throw new Error(`Song ${id} nicht gefunden`);
+  return SongSchema.parse({ id: row.id, title: row.title, ...row.data });
 }
 
 export async function songExists(id: string): Promise<boolean> {
@@ -41,42 +34,51 @@ export async function songExists(id: string): Promise<boolean> {
   );
 }
 
+// Updates title and data of an existing song. New songs go through createSong.
 export async function writeSong(song: Song): Promise<void> {
-  await mkdir(songDir(song.id), { recursive: true });
-  await writeFile(path.join(songDir(song.id), "song.json"), JSON.stringify(song, null, 2) + "\n");
+  const { id, title, ...data } = song;
+  await db
+    .update(schema.songs)
+    .set({ title, data, updatedAt: new Date() })
+    .where(eq(schema.songs.id, id));
+}
+
+export async function createSong(song: Song, midi: Uint8Array): Promise<void> {
+  const { id, title, ...data } = song;
+  await db.insert(schema.songs).values({ id, title, data, midi });
 }
 
 export async function readMidi(id: string): Promise<Uint8Array> {
-  return new Uint8Array(await readFile(path.join(songDir(id), "notes.mid")));
+  const row = await db.query.songs.findFirst({
+    where: eq(schema.songs.id, id),
+    columns: { midi: true },
+  });
+  if (!row) throw new Error(`Song ${id} nicht gefunden`);
+  return row.midi;
 }
 
-export async function writeMidi(id: string, bytes: Uint8Array): Promise<void> {
-  await mkdir(songDir(id), { recursive: true });
-  await writeFile(path.join(songDir(id), "notes.mid"), bytes);
+export async function removeSong(id: string): Promise<void> {
+  await db.delete(schema.songs).where(eq(schema.songs.id, id));
 }
 
-export async function moveMidi(id: string, fromPath: string): Promise<void> {
-  await mkdir(songDir(id), { recursive: true });
-  await rename(fromPath, path.join(songDir(id), "notes.mid"));
-}
-
-export async function removeSongDir(id: string): Promise<void> {
-  await rm(songDir(id), { recursive: true, force: true });
-}
-
-// Folder name from a title, unique among existing songs: "secunda", "secunda-2", ...
+// Song id from a title, unique among existing songs: "secunda", "secunda-2", ...
 export async function uniqueSongId(title: string): Promise<string> {
-  const base =
+  const base = slug(title);
+  const existing = new Set(
+    (await db.select({ id: schema.songs.id }).from(schema.songs)).map((row) => row.id),
+  );
+  if (!existing.has(base)) return base;
+  for (let n = 2; ; n++) if (!existing.has(`${base}-${n}`)) return `${base}-${n}`;
+}
+
+export function slug(title: string): string {
+  return (
     title
       .toLowerCase()
       .normalize("NFKD")
       .replace(/[̀-ͯ]/g, "")
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
-      .slice(0, 60) || "song";
-  const existing = new Set(
-    (await readdir(songsDir(), { withFileTypes: true }).catch(() => [])).map((e) => e.name),
+      .slice(0, 60) || "song"
   );
-  if (!existing.has(base)) return base;
-  for (let n = 2; ; n++) if (!existing.has(`${base}-${n}`)) return `${base}-${n}`;
 }

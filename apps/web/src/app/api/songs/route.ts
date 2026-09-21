@@ -1,6 +1,6 @@
 import { analyzeNewSong } from "@/lib/analyze";
 import { parseMidi } from "@/lib/midi";
-import { listSongs, uniqueSongId, writeMidi, writeSong } from "@/lib/storage";
+import { createSong, listSongs, uniqueSongId } from "@/lib/storage";
 
 export async function GET() {
   return Response.json(await listSongs());
@@ -24,11 +24,10 @@ export async function POST(request: Request) {
   }
   const title = file.name.replace(/\.midi?$/i, "").trim() || "Unbenannt";
   const id = await uniqueSongId(title);
-  await writeMidi(id, bytes);
   const song = await analyzeNewSong(
     { id, title, source: { type: "midi", fileName: file.name } },
     bytes,
   );
-  await writeSong(song);
+  await createSong(song, bytes);
   return Response.json(song);
 }

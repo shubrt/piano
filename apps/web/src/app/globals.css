@@ -63,6 +63,16 @@ button:focus-visible {
 .home {
   padding: 24px 20px;
   max-width: 960px;
+  position: relative;
+}
+
+.user-menu {
+  position: absolute;
+  top: 24px;
+  right: 20px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .home h1 {
