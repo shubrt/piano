@@ -14,9 +14,9 @@ export const env = createEnv({
   server: {
     // Songs, import jobs and nothing else. Railway's Postgres provides the URL.
     DATABASE_URL: z.string().url(),
-    // Origin the browser uses. Shoo binds the login to it and the session
-    // cookie is only Secure on https, so local dev runs on http://localhost:3000.
-    PUBLIC_URL: z.string().url().default("http://localhost:3000"),
+    // Origin the browser uses, set in production. Unset, the login takes the
+    // origin from each request (portless worktree URLs, localhost).
+    PUBLIC_URL: z.string().url().optional(),
     // Signs the session cookie, at least 32 bytes.
     SESSION_SECRET: z.string().min(32),
     SHOO_BASE_URL: z.string().url().default("https://shoo.dev"),

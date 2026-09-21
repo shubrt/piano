@@ -23,13 +23,16 @@ export function buildPkce(): { verifier: string; challenge: string; state: strin
   };
 }
 
-export function redirectUri(): string {
-  return new URL("/auth/callback", env.PUBLIC_URL).toString();
+export function redirectUri(origin: string): string {
+  return `${origin}/auth/callback`;
 }
 
-export function buildAuthorizeUrl(values: { state: string; challenge: string }): string {
+export function buildAuthorizeUrl(
+  origin: string,
+  values: { state: string; challenge: string },
+): string {
   const url = new URL("/authorize", env.SHOO_BASE_URL);
-  url.searchParams.set("redirect_uri", redirectUri());
+  url.searchParams.set("redirect_uri", redirectUri(origin));
   url.searchParams.set("state", values.state);
   url.searchParams.set("code_challenge", values.challenge);
   url.searchParams.set("code_challenge_method", "S256");
@@ -38,16 +41,16 @@ export function buildAuthorizeUrl(values: { state: string; challenge: string }):
   return url.toString();
 }
 
-export async function exchangeCode(values: {
-  code: string;
-  verifier: string;
-}): Promise<ShooClaims> {
+export async function exchangeCode(
+  origin: string,
+  values: { code: string; verifier: string },
+): Promise<ShooClaims> {
   const response = await fetch(new URL("/token", env.SHOO_BASE_URL), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       grant_type: "authorization_code",
-      redirect_uri: redirectUri(),
+      redirect_uri: redirectUri(origin),
       code: values.code,
       code_verifier: values.verifier,
     }),
@@ -66,7 +69,7 @@ export async function exchangeCode(values: {
   const { payload } = await jwtVerify(
     idToken,
     createRemoteJWKSet(new URL("/.well-known/jwks.json", env.SHOO_BASE_URL)),
-    { issuer, audience: `origin:${new URL(env.PUBLIC_URL).origin}`, algorithms: ["ES256"] },
+    { issuer, audience: `origin:${origin}`, algorithms: ["ES256"] },
   );
   if (typeof payload.pairwise_sub !== "string" || !payload.pairwise_sub)
     throw new Error("Shoo id_token is missing pairwise_sub");

@@ -30,10 +30,9 @@ docker compose up -d        # Postgres on localhost:5432, shared by every worktr
 vp run dev                  # https://piano.localhost, in a worktree https://<branch>.piano.localhost
 ```
 
-Every page needs a login through [shoo.dev](https://shoo.dev). shoo binds the
-login to `PUBLIC_URL`, so open the app on exactly that origin
-(`http://localhost:3000` by default, `PORTLESS=0 vp run dev` serves it there).
-All signed-in users share one song list.
+Every page needs a login through [shoo.dev](https://shoo.dev). Locally the
+login binds to whatever origin the browser is on, so every worktree URL works.
+Production pins it with `PUBLIC_URL`. All signed-in users share one song list.
 
 Songs that still sit in folders (`~/.piano/songs/<id>/` with `notes.mid` and
 `song.json`, the format before Postgres) move into the database once:
@@ -73,7 +72,7 @@ between imports. Variables per service:
 | web     | `DATABASE_URL=${{postgres.DATABASE_URL}}`, `PUBLIC_URL`, `SESSION_SECRET`, `WORKER_URL=http://${{worker.RAILWAY_PRIVATE_DOMAIN}}:8000`, `WORKER_TOKEN`, `OPENROUTER_API_KEY`, `STRUCTURE_MODEL` |
 | worker  | `DATABASE_URL=${{postgres.DATABASE_URL}}`, `WORKER_TOKEN`, `PORT=8000`                                                                                                                          |
 
-In PR environments `PUBLIC_URL` is `https://${{RAILWAY_PUBLIC_DOMAIN}}`. DNS
+PR environments leave `PUBLIC_URL` unset and take the origin from the request. DNS
 is a DNS-only CNAME plus the TXT record Railway shows, both at Cloudflare.
 
 ## Structure benchmark

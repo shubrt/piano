@@ -6,6 +6,7 @@ import {
   serializeCookie,
   signToken,
 } from "@/lib/auth/session";
+import { requestOrigin } from "@/lib/auth/origin";
 import { buildAuthorizeUrl, buildPkce } from "@/lib/auth/shoo";
 
 // Starts the shoo login. PKCE verifier and state travel in a signed short-lived
@@ -21,7 +22,7 @@ export function GET(request: Request) {
   return new Response(null, {
     status: 303,
     headers: {
-      Location: buildAuthorizeUrl(pkce),
+      Location: buildAuthorizeUrl(requestOrigin(request), pkce),
       "Set-Cookie": serializeCookie(AUTH_STATE_COOKIE, state, AUTH_STATE_TTL_SECONDS),
     },
   });
