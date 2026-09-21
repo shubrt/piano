@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { currentUser } from "@/lib/auth";
 import { analyseNotes } from "@/lib/analysis";
 import { scaleName } from "@/lib/analysis/scale";
 import { parseMidi } from "@/lib/midi";
@@ -10,6 +11,7 @@ import { AiButton } from "./ai-button";
 import { DeleteButton } from "./delete-button";
 import { ImportPanel } from "./import-panel";
 import { SourceLink } from "./source-link";
+import { UserMenu } from "./user-menu";
 
 export const dynamic = "force-dynamic";
 
@@ -27,9 +29,10 @@ async function loadRows(): Promise<Row[]> {
 }
 
 export default async function HomePage() {
-  const rows = await loadRows();
+  const [rows, user] = await Promise.all([loadRows(), currentUser()]);
   return (
     <ImportPanel>
+      <UserMenu user={user} />
       <h2>Songs</h2>
       {rows.length === 0 ? (
         <p className="dim">

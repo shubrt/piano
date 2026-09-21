@@ -14,9 +14,9 @@ import { formatParts, ReferenceSchema, scoreParts } from "../src/lib/benchmark";
 import { env } from "../src/lib/env";
 import { parseMidi } from "../src/lib/midi";
 import { assignHands } from "../src/lib/notes";
-import { listSongs, readMidi, songDir } from "../src/lib/storage";
 import { detectStructure, LOCAL_MODEL } from "../src/lib/structure/detect";
 import { segmentStructure } from "../src/lib/structure/heuristic";
+import { listSongFolders } from "./song-files";
 
 const args = process.argv.slice(2);
 const referenceFlag = args.indexOf("--reference");
@@ -29,13 +29,13 @@ if (recordModel === LOCAL_MODEL) {
   process.exit(2);
 }
 
-const songs = await listSongs();
+const songs = await listSongFolders(env.SONGS_DIR);
 const results: { title: string; score: number }[] = [];
 let missingReference = 0;
 
-for (const song of songs) {
-  const referencePath = path.join(songDir(song.id), "reference.json");
-  const notes = assignHands(parseMidi(await readMidi(song.id)), song.hands);
+for (const { song, midi, dir } of songs) {
+  const referencePath = path.join(dir, "reference.json");
+  const notes = assignHands(parseMidi(midi), song.hands);
 
   if (recordModel && !existsSync(referencePath)) {
     const result = await detectStructure({
