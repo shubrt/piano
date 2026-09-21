@@ -107,7 +107,15 @@ def run_job(job_id: str) -> None:
             tail = " | ".join((error.stderr or str(error)).strip().split("\n")[-5:])
             set_status(job_id, "error", error=f"{Path(error.cmd[0]).name} fehlgeschlagen: {tail}")
         except Exception as error:  # noqa: BLE001, one job must not take the worker down
-            set_status(job_id, "error", error=str(error)[:2000])
+            set_status(job_id, "error", error=describe(error))
+
+
+def describe(error: Exception) -> str:
+    """yt-dlp's bot check is the one error users can act on themselves."""
+    text = str(error)
+    if "Sign in to confirm" in text:
+        return "YouTube blockiert Downloads von diesem Server. Audiodatei stattdessen auf die Seite ziehen."
+    return text[:2000]
 
 
 def work_forever() -> None:
