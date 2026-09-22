@@ -10,10 +10,14 @@ The dev server runs through portless, so each git worktree gets its own stable
 URL derived from the branch name: `https://<branch-suffix>.piano.localhost`
 (main checkout: `https://piano.localhost`).
 
+0. Postgres must be up: `docker compose up -d` in the repo (one shared
+   container for every worktree).
 1. Check whether this worktree's server is already up: the URL from
    `portless get piano` (run inside the repo) appears in `portless list`.
 2. If not, start `vp run dev` as a background process owned by your session.
    Do not detach it (no `nohup`, no `setsid`), the session must stay its parent.
+   Imports need the worker too: `vp run dev:worker` the same way, it registers
+   `https://<branch-suffix>.piano-worker.localhost`.
 3. Wait until the URL answers, then put it as the last line of your final
    message so the user can click it.
 4. Never stop the server yourself. It dies with the session, and portless then

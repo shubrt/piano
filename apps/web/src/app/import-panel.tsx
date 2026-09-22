@@ -2,17 +2,20 @@
 
 import { useRouter } from "next/navigation";
 import { type DragEvent, type FormEvent, type ReactNode, useState } from "react";
-import type { ImportProgress } from "@/lib/import";
+import type { ImportJob } from "@/lib/import";
 
-const STEP_LABEL: Record<ImportProgress["step"], string> = {
+const STEP_LABEL: Record<ImportJob["status"], string> = {
+  queued: "wartet auf den Worker",
   audio: "Audio geladen",
   transcribe: "Transkription",
+  transcribed: "Transkription fertig",
   analyze: "Analyse",
   done: "fertig",
   error: "Fehler",
 };
 
-// URL field, MIDI drop zone (the whole page) and the status line of a running import.
+// URL field, drop zone for MIDI or audio files (the whole page) and the status
+// line of a running import. Imports run in the worker, the panel polls the job.
 export function ImportPanel({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [url, setUrl] = useState("");
@@ -20,65 +23,61 @@ export function ImportPanel({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
 
-  async function importUrl(event: FormEvent) {
-    event.preventDefault();
-    if (!url.trim() || busy) return;
+  async function run(label: string, start: () => Promise<Response>) {
+    if (busy) return;
     setBusy(true);
-    setStatus("Import läuft: Start");
+    setStatus(`Import läuft: ${label}`);
     try {
-      const response = await fetch("/api/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim() }),
-      });
-      if (!response.ok || !response.body) {
-        setStatus(
-          `Fehler: ${((await response.json().catch(() => null)) as { error?: string } | null)?.error ?? response.status}`,
-        );
+      const response = await start();
+      if (!response.ok) {
+        setStatus(`Fehler: ${await errorText(response)}`);
         return;
       }
-      let title = "";
-      for await (const progress of readEvents(response.body)) {
-        if ("title" in progress && progress.title) title = progress.title;
-        if (progress.step === "error") {
-          setStatus(`Fehler: ${progress.message}`);
-          return;
-        }
-        if (progress.step === "done") {
-          setStatus(null);
-          setUrl("");
-          router.refresh();
-          return;
-        }
-        setStatus(`Import läuft: ${title || url} · ${STEP_LABEL[progress.step]}`);
+      const started = (await response.json()) as ImportJob;
+      if (started.status === "done") {
+        setStatus(null);
+        setUrl("");
+        router.refresh();
+        return;
       }
+      const outcome = await pollJob(started.id, (job) =>
+        setStatus(`Import läuft: ${job.title ?? label} · ${STEP_LABEL[job.status]}`),
+      );
+      if (outcome.status === "error") {
+        setStatus(`Fehler: ${outcome.error ?? "unbekannt"}`);
+        return;
+      }
+      setStatus(null);
+      setUrl("");
+      router.refresh();
     } finally {
       setBusy(false);
     }
   }
 
-  async function dropFile(event: DragEvent) {
+  function importUrl(event: FormEvent) {
+    event.preventDefault();
+    const value = url.trim();
+    if (!value) return;
+    void run(value, () =>
+      fetch("/api/imports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: value }),
+      }),
+    );
+  }
+
+  function dropFile(event: DragEvent) {
     event.preventDefault();
     setDragging(false);
     const file = event.dataTransfer.files[0];
-    if (!file || busy) return;
-    setBusy(true);
-    setStatus(`Analyse läuft: ${file.name}`);
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      const response = await fetch("/api/songs", { method: "POST", body: form });
-      if (!response.ok) {
-        setStatus(
-          `Fehler: ${((await response.json().catch(() => null)) as { error?: string } | null)?.error ?? response.status}`,
-        );
-        return;
-      }
-      setStatus(null);
-      router.refresh();
-    } finally {
-      setBusy(false);
-    }
+    if (!file) return;
+    const form = new FormData();
+    form.append("file", file);
+    // MIDI needs only the analysis, audio goes through the worker.
+    const endpoint = /\.midi?$/i.test(file.name) ? "/api/songs" : "/api/imports";
+    void run(file.name, () => fetch(endpoint, { method: "POST", body: form }));
   }
 
   return (
@@ -104,7 +103,7 @@ export function ImportPanel({ children }: { children: ReactNode }) {
           Importieren
         </button>
       </form>
-      <p className="dim">Oder eine MIDI-Datei auf die Seite ziehen.</p>
+      <p className="dim">Oder eine MIDI- oder Audiodatei auf die Seite ziehen.</p>
       {status ? (
         <p className={`status${status.startsWith("Fehler") ? "" : " dim"}`}>{status}</p>
       ) : null}
@@ -113,24 +112,20 @@ export function ImportPanel({ children }: { children: ReactNode }) {
   );
 }
 
-// Parses the text/event-stream body into progress objects.
-async function* readEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<ImportProgress> {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
+async function errorText(response: Response): Promise<string> {
+  const body = (await response.json().catch(() => null)) as { error?: string } | null;
+  return body?.error ?? String(response.status);
+}
+
+// Asks for the job every two seconds until it is done or failed.
+async function pollJob(id: string, onProgress: (job: ImportJob) => void): Promise<ImportJob> {
   for (;;) {
-    const { value, done } = await reader.read();
-    if (done) return;
-    buffer += decoder.decode(value, { stream: true });
-    const events = buffer.split("\n\n");
-    buffer = events.pop() ?? "";
-    for (const event of events) {
-      const data = event
-        .split("\n")
-        .filter((line) => line.startsWith("data: "))
-        .map((line) => line.slice(6))
-        .join("\n");
-      if (data) yield JSON.parse(data) as ImportProgress;
-    }
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const response = await fetch(`/api/imports/${id}`, { cache: "no-store" });
+    if (!response.ok)
+      return { id, status: "error", title: null, songId: null, error: await errorText(response) };
+    const job = (await response.json()) as ImportJob;
+    if (job.status === "done" || job.status === "error") return job;
+    onProgress(job);
   }
 }

@@ -19,11 +19,12 @@ import {
   scoreLabels,
   scoreTracks,
 } from "../src/lib/benchmark-hands";
+import { env } from "../src/lib/env";
 import { parseMidi } from "../src/lib/midi";
 import { assignHands } from "../src/lib/notes";
-import { listSongs, readMidi, songDir } from "../src/lib/storage";
 import { trimForDisplay } from "../src/lib/trim";
 import { renderHandsReport, type SongResult } from "./hands-report";
+import { listSongFolders } from "./song-files";
 
 const args = process.argv.slice(2);
 const htmlFlag = args.indexOf("--html");
@@ -34,11 +35,11 @@ if (htmlFlag >= 0 && !htmlPath) {
 }
 
 const results: SongResult[] = [];
-for (const song of await listSongs()) {
-  const parsed = parseMidi(await readMidi(song.id));
+for (const { song, midi, dir } of await listSongFolders(env.SONGS_DIR)) {
+  const parsed = parseMidi(midi);
   const shown = assignHands(parsed, song.hands);
   const notes = trimForDisplay(shown, song.pedalTrim ?? false);
-  const labelsPath = path.join(songDir(song.id), "hands.json");
+  const labelsPath = path.join(dir, "hands.json");
   const labels = existsSync(labelsPath)
     ? scoreLabels(
         song,

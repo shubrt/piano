@@ -1,24 +1,51 @@
 import { createEnv } from "@t3-oss/env-core";
+import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { z } from "zod";
 
 // The .env lives in the monorepo root (t3.json symlinks it into worktrees).
-// Next only reads the app folder, so load the root file by hand first. Bun
-// below 1.3.10 lacks loadEnvFile; the benchmark script passes --env-file instead.
+// Next only reads the app folder, so load the root file by hand first. In the
+// Docker image the variables come from Railway and the file does not exist.
 const rootEnv = path.resolve(process.cwd(), "../../.env");
 if (existsSync(rootEnv) && typeof process.loadEnvFile === "function") process.loadEnvFile(rootEnv);
 
 export const env = createEnv({
   server: {
+    // Songs, import jobs and nothing else. Railway's Postgres provides the URL.
+    DATABASE_URL: z.string().url(),
+    // Origin the browser uses, set in production. Unset, the login takes the
+    // origin from each request (portless worktree URLs, localhost).
+    PUBLIC_URL: z.string().url().optional(),
+    // Signs the session cookie, at least 32 bytes.
+    SESSION_SECRET: z.string().min(32),
+    SHOO_BASE_URL: z.string().url().default("https://shoo.dev"),
+    // The Python worker that turns audio into MIDI. Private network on Railway,
+    // unset locally: vp run dev:worker registers it with portless and the URL
+    // comes from there.
+    WORKER_URL: z.string().url().default(portlessWorkerUrl()),
+    // Shared secret the worker requires on every job request.
+    WORKER_TOKEN: z.string().min(1),
     OPENROUTER_API_KEY: z.string().optional(),
     STRUCTURE_MODEL: z.string().default("anthropic/claude-opus-5"),
-    // Folder with one subfolder per song. Lives outside the repository so every
-    // worktree sees the same songs. The repo's own songs/ holds only the two
-    // benchmark references, the benchmark script points SONGS_DIR there.
+    // Song folders for the benchmarks only. The app itself reads Postgres.
     SONGS_DIR: z.string().default(path.join(os.homedir(), ".piano", "songs")),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,
+  // next build imports the routes without a database; the Dockerfile sets this.
+  skipValidation: process.env.SKIP_ENV_VALIDATION === "1",
 });
+
+// https://<worktree>.piano-worker.localhost, the route dev:worker takes. The
+// dev script sets NODE_USE_SYSTEM_CA so fetch trusts portless' certificate.
+// Outside dev the variable must be set, the fallback then only fails validation.
+function portlessWorkerUrl(): string {
+  if (process.env.NODE_ENV === "production") return "";
+  try {
+    return execFileSync("portless", ["get", "piano-worker"], { encoding: "utf8" }).trim();
+  } catch {
+    return "";
+  }
+}
