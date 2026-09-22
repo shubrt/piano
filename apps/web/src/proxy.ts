@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { sameOrigin } from "@/lib/auth/same-origin";
 import { readCookie, readSessionUser, SESSION_COOKIE } from "@/lib/auth/session";
 
 // Everything except the login routes and the health check needs a session.
@@ -11,11 +12,8 @@ export function proxy(request: NextRequest) {
   if (user) {
     // Cross-site POSTs carry no Lax cookie, but a same-site subdomain would.
     // Requiring the Origin to match closes that for every writing request.
-    if (request.method !== "GET" && request.method !== "HEAD") {
-      const origin = request.headers.get("origin");
-      if (origin && origin !== request.nextUrl.origin)
-        return NextResponse.json({ error: "Falscher Origin" }, { status: 403 });
-    }
+    if (request.method !== "GET" && request.method !== "HEAD" && !sameOrigin(request.headers))
+      return NextResponse.json({ error: "Falscher Origin" }, { status: 403 });
     return NextResponse.next();
   }
   if (request.nextUrl.pathname.startsWith("/api/"))
