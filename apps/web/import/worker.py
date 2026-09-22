@@ -195,7 +195,12 @@ class DualStackServer(ThreadingHTTPServer):
 
 
 if __name__ == "__main__":
-    requeue_interrupted()
+    # A database that is down at boot must not keep the worker from serving
+    # /health; the jobs themselves report their own connection errors.
+    try:
+        requeue_interrupted()
+    except Exception as error:  # noqa: BLE001
+        sys.stderr.write(f"requeue skipped, database unreachable: {error}\n")
     threading.Thread(target=work_forever, daemon=True).start()
     server = DualStackServer(("::", PORT), Handler)
     print(f"worker listening on :{PORT}", flush=True)
