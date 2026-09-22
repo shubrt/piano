@@ -62,8 +62,10 @@ the browser polls the job. Locally the app finds the worker through
 
 Production is `https://piano.shubrt.me` on Railway, project `piano`, three
 services: `web` (`apps/web/Dockerfile`), `worker` (`apps/web/import/Dockerfile`)
-and a Railway Postgres. Every push to `main` deploys, every pull request gets
-its own environment with an empty database.
+and a Railway Postgres. The hosting work is not on `main` yet: production
+deploys the `shubrt/hosting` branch, named once as `PRODUCTION_BRANCH` in
+`.railway/railway.ts`. Every push to that branch deploys, every pull request
+gets its own environment with an empty database.
 
 The project is declared in `.railway/railway.ts` (Railway infrastructure as
 code): builders, watch paths, healthchecks, domain, variables. Secrets are

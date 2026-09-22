@@ -6,12 +6,16 @@ import { defineRailway, github, postgres, preserve, project, service, volume } f
 // linked to the project. Secrets stay in Railway (preserve()), everything else
 // is spelled out here. PR environments duplicate production, the
 // railway-pr-env workflow applies this file to them so web sleeps there.
+// The hosting work lives on this branch, not on main, so production deploys
+// from here until it is merged.
+const PRODUCTION_BRANCH = "shubrt/hosting";
+
 export default defineRailway((ctx) => {
   const production = ctx.isEnvironment("production");
-  // Production deploys main. A PR environment deploys the PR's branch, which
-  // the railway-pr-env workflow passes in PR_BRANCH.
+  // A PR environment deploys the PR's branch, which the railway-pr-env
+  // workflow passes in PR_BRANCH.
   const repo = github("shubrt/piano", {
-    branch: production ? "main" : (processEnv.PR_BRANCH ?? "main"),
+    branch: production ? PRODUCTION_BRANCH : (processEnv.PR_BRANCH ?? PRODUCTION_BRANCH),
     checkSuites: false,
   });
   const region = "europe-west4-drams3a";
