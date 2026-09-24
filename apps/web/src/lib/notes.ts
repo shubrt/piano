@@ -1,6 +1,6 @@
 import { assignAuto } from "./hands";
 import type { MidiTrack, ParsedMidi } from "./midi";
-import type { Hands } from "./song";
+import type { HandOverrides, Hands } from "./song";
 
 export { MAX_HAND_SPAN } from "./hands";
 
@@ -48,6 +48,19 @@ export function assignHands(parsed: ParsedMidi, hands: Hands): Note[] {
     flat.forEach((n, i) => notes.push({ ...n, hand: auto[i]! }));
   }
   return notes.sort((x, y) => x.time - y.time || x.midi - y.midi);
+}
+
+// A note's identity across reloads: pitch and onset in milliseconds.
+export function noteKey(note: { midi: number; time: number }): string {
+  return `${note.midi}@${Math.round(note.time * 1000)}`;
+}
+
+// The hands from assignHands with the user's overrides on top. Order is kept.
+export function withHandOverrides(notes: readonly Note[], overrides: HandOverrides = {}): Note[] {
+  return notes.map((n) => {
+    const hand = overrides[noteKey(n)];
+    return hand && hand !== n.hand ? { ...n, hand } : n;
+  });
 }
 
 function meanPitch(track: MidiTrack): number {

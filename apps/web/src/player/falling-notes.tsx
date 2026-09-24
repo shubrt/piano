@@ -41,14 +41,28 @@ type Props = {
   grid: Grid;
   scale: Scale;
   totalBars: number;
+  // A click on a drawn note, with its BeatNote key.
+  onNoteClick: (key: string) => void;
 };
+
+type Hit = { x: number; y: number; w: number; h: number; key: string };
 
 // One requestAnimationFrame loop draws bar lines, the notes of the next few
 // beats and the keyboard. Nothing but the canvas element lives in the DOM.
-export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
+// Each frame remembers where it drew the notes, clicks are tested against that.
+export function FallingNotes({ engine, notes, grid, scale, totalBars, onNoteClick }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const props = useRef({ notes, grid, scale, totalBars });
-  props.current = { notes, grid, scale, totalBars };
+  const props = useRef({ notes, grid, scale, totalBars, onNoteClick });
+  props.current = { notes, grid, scale, totalBars, onNoteClick };
+  const hits = useRef<Hit[]>([]);
+
+  // The topmost drawn note under a point in canvas coordinates.
+  const hitAt = (event: React.PointerEvent<HTMLCanvasElement>): Hit | undefined => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    return hits.current.findLast((h) => x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h);
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -93,6 +107,7 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
       }
 
       context.clearRect(0, 0, width, height);
+      hits.current = [];
       const keys = keyboardLayout(width);
       const keyByMidi = new Map(keys.map((k) => [k.midi, k]));
 
@@ -146,6 +161,7 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
         context.beginPath();
         context.roundRect(x, top, w, h, radius);
         context.fill();
+        hits.current.push({ x, y: top, w, h: Math.min(bottom, hitY) - top, key: note.key });
         // The digit stays on the hit line while the note sounds.
         const visibleBottom = Math.min(bottom, hitY);
         if (
@@ -209,7 +225,18 @@ export function FallingNotes({ engine, notes, grid, scale, totalBars }: Props) {
 
   return (
     <div className="stage">
-      <canvas ref={canvasRef} aria-label={`Fallende Noten, Tasten ${FIRST_KEY} bis ${LAST_KEY}`} />
+      <canvas
+        ref={canvasRef}
+        aria-label={`Fallende Noten, Tasten ${FIRST_KEY} bis ${LAST_KEY}`}
+        onPointerDown={(event) => {
+          const hit = hitAt(event);
+          if (hit) props.current.onNoteClick(hit.key);
+        }}
+        onPointerMove={(event) => {
+          const clickable = usePlayer.getState().hands && hitAt(event) !== undefined;
+          event.currentTarget.style.cursor = clickable ? "pointer" : "";
+        }}
+      />
     </div>
   );
 }

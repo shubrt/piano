@@ -4,6 +4,8 @@ import type { Finger } from "@/lib/fingering";
 import type { Hand, Note } from "@/lib/notes";
 
 export type BeatNote = {
+  // noteKey() of the MIDI note, for hand overrides.
+  key: string;
   beat: number;
   durationBeats: number;
   midi: number;
@@ -30,7 +32,7 @@ export class Engine {
   private anchors: Anchor[] = [{ beat: 0, time: 0 }];
   private timer: ReturnType<typeof setInterval> | null = null;
   private scheduledUntil = 0;
-  private notes: BeatNote[] = [];
+  private notes: Omit<BeatNote, "key">[] = [];
   private grid: Grid = { bpm: 120, beatsPerBar: 4, offsetSec: 0 };
   private endBeat = 0;
   playing = false;
@@ -238,7 +240,7 @@ export class Engine {
   }
 }
 
-function lowerBound(notes: readonly BeatNote[], beat: number): number {
+function lowerBound(notes: readonly Omit<BeatNote, "key">[], beat: number): number {
   let lo = 0;
   let hi = notes.length;
   while (lo < hi) {

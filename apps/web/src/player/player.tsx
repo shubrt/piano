@@ -6,7 +6,7 @@ import { scaleName } from "@/lib/analysis/scale";
 import { type Block, blockRepeats, blocksOfPart, effectiveParts } from "@/lib/blocks";
 import { barOfBeat, barStartBeat, beatSeconds, timeToBeat } from "@/lib/grid";
 import { parseMidi, type ParsedMidi } from "@/lib/midi";
-import { assignHands } from "@/lib/notes";
+import { assignHands, type Hand, noteKey, withHandOverrides } from "@/lib/notes";
 import { trimForDisplay } from "@/lib/trim";
 import { assignFingering } from "@/lib/fingering";
 import { type Part, type Song, SongSchema, type SongPatch } from "@/lib/song";
@@ -41,10 +41,17 @@ export function Player({ initialSong }: { initialSong: Song }) {
     };
   }, [song.id]);
 
+  // Hands before the user's overrides. Kept apart so a click can tell whether it
+  // returns a note to its assigned hand.
+  const assigned = useMemo(
+    () => (parsed ? assignHands(parsed, song.hands) : null),
+    [parsed, song.hands],
+  );
+
   // Everything derived from notes and grid. Recomputed when a correction field changes.
   const derived = useMemo(() => {
-    if (!parsed) return null;
-    const notes = assignHands(parsed, song.hands);
+    if (!assigned) return null;
+    const notes = withHandOverrides(assigned, song.handOverrides);
     const analysis = analyseNotes(song, notes);
     const parts = effectiveParts(song.parts, analysis.totalBars);
     const blocks = parts.flatMap((part, i) => blocksOfPart(part, i));
@@ -52,6 +59,7 @@ export function Player({ initialSong }: { initialSong: Song }) {
     // The falling notes show key time, the engine plays the full ring time.
     const beatNotes: BeatNote[] = trimForDisplay(notes, song.pedalTrim ?? false)
       .map((n, i) => ({
+        key: noteKey(n),
         finger: fingers[i],
         beat: timeToBeat(song, n.time),
         durationBeats: n.duration / beatSeconds(song),
@@ -68,7 +76,7 @@ export function Player({ initialSong }: { initialSong: Song }) {
       blocks,
       repeats: blockRepeats(blocks, analysis.fingerprints),
     };
-  }, [parsed, song]);
+  }, [assigned, song]);
 
   const engine = useMemo(() => {
     engineRef.current?.dispose();
@@ -149,6 +157,39 @@ export function Player({ initialSong }: { initialSong: Song }) {
       }
     },
     [song.id, setLoop],
+  );
+
+  // Saves run one after another, so the last click is the one that sticks.
+  const saving = useRef(Promise.resolve());
+
+  // A click on a falling note moves it to the other hand. Only with hand
+  // colours on, otherwise nothing would show the change. Back in its assigned
+  // hand the override is dropped again.
+  const toggleHand = useCallback(
+    (key: string) => {
+      if (!assigned || !usePlayer.getState().hands) return;
+      const note = assigned.find((n) => noteKey(n) === key);
+      if (!note) return;
+      const overrides = { ...song.handOverrides };
+      const current = overrides[key] ?? note.hand;
+      const next: Hand = current === "left" ? "right" : "left";
+      if (next === note.hand) delete overrides[key];
+      else overrides[key] = next;
+      setSong({ ...song, handOverrides: overrides });
+      saving.current = saving.current
+        .then(() =>
+          fetch(`/api/songs/${song.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ handOverrides: overrides }),
+          }),
+        )
+        .then(
+          () => undefined,
+          () => undefined,
+        );
+    },
+    [assigned, song],
   );
 
   const reanalyze = useCallback(async () => {
@@ -315,6 +356,7 @@ export function Player({ initialSong }: { initialSong: Song }) {
           grid={song}
           scale={derived.analysis.scale}
           totalBars={derived.analysis.totalBars}
+          onNoteClick={toggleHand}
         />
       ) : (
         <div className="stage" />
@@ -338,6 +380,9 @@ export function Player({ initialSong }: { initialSong: Song }) {
         </span>
         <span className={state.hands ? undefined : "off"}>
           <b>L R</b>Hand
+        </span>
+        <span className={state.hands ? undefined : "off"}>
+          <b>Klick</b>Hand tauschen
         </span>
         <span>
           <b>M</b>Metronom
