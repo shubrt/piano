@@ -77,6 +77,21 @@ button:focus-visible {
   font-weight: 600;
 }
 
+.songs-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 28px 0 6px;
+}
+
+.songs-head h2 {
+  margin: 0;
+}
+
+.songs-head input {
+  width: 240px;
+}
+
 .import-row {
   display: flex;
   gap: 8px;
