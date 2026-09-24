@@ -24,6 +24,11 @@ export const HandsSchema = z.discriminatedUnion("type", [
 ]);
 export type Hands = z.infer<typeof HandsSchema>;
 
+// Hands the user set by clicking a note in the player, keyed by noteKey().
+// They win over whatever the hands mode assigns.
+export const HandOverridesSchema = z.record(z.string(), z.enum(["left", "right"]));
+export type HandOverrides = z.infer<typeof HandOverridesSchema>;
+
 export const SourceSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("youtube"), url: z.string().url() }),
   z.object({ type: z.literal("midi"), fileName: z.string() }),
@@ -47,6 +52,7 @@ export const SongSchema = z.object({
   beatsPerBar: z.literal([...BEATS_PER_BAR]),
   offsetSec: z.number(),
   hands: HandsSchema,
+  handOverrides: HandOverridesSchema.optional(),
   // Shorten every note in the display to the next onset of the same hand. For
   // recordings played with the pedal, where the transcription writes the ring
   // time instead of the key time. Optional rather than defaulted so a partial
@@ -64,6 +70,7 @@ export const SongPatchSchema = SongSchema.pick({
   beatsPerBar: true,
   offsetSec: true,
   hands: true,
+  handOverrides: true,
   pedalTrim: true,
 }).partial();
 export type SongPatch = z.infer<typeof SongPatchSchema>;

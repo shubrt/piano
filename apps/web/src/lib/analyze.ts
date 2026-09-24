@@ -2,7 +2,7 @@ import { onsetHistogram, suggestBeatsPerBar } from "./analysis/chords";
 import { detectTempo, roundBpm } from "./analysis/tempo";
 import { env } from "./env";
 import { parseMidi } from "./midi";
-import { allOnsets, assignHands, detectHands } from "./notes";
+import { allOnsets, assignHands, detectHands, withHandOverrides } from "./notes";
 import type { Song } from "./song";
 import { detectStructure, LOCAL_MODEL } from "./structure/detect";
 
@@ -56,7 +56,7 @@ export async function reanalyzeStructure(
   midi: Uint8Array,
   options: { ai: boolean },
 ): Promise<Song> {
-  const notes = assignHands(parseMidi(midi), song.hands);
+  const notes = withHandOverrides(assignHands(parseMidi(midi), song.hands), song.handOverrides);
   const result = await detectStructure({
     grid: song,
     notes,
