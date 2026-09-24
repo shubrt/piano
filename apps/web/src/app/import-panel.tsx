@@ -12,7 +12,8 @@ const STEP_LABEL: Record<ImportProgress["step"], string> = {
   error: "Fehler",
 };
 
-// URL field, MIDI drop zone (the whole page) and the status line of a running import.
+// URL field (several URLs separated by commas), MIDI drop zone (the whole page)
+// and the status line of a running import.
 export function ImportPanel({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [url, setUrl] = useState("");
@@ -20,41 +21,52 @@ export function ImportPanel({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
 
-  async function importUrl(event: FormEvent) {
+  // Imports every URL in the field one after another. Failed URLs stay in the
+  // field so they can be retried, their errors in the status line.
+  async function importUrls(event: FormEvent) {
     event.preventDefault();
-    if (!url.trim() || busy) return;
+    const urls = [...new Set(url.split(/[\s,]+/).filter(Boolean))];
+    if (urls.length === 0 || busy) return;
     setBusy(true);
-    setStatus("Import läuft: Start");
+    const failed: { url: string; message: string }[] = [];
     try {
-      const response = await fetch("/api/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim() }),
-      });
-      if (!response.ok || !response.body) {
-        setStatus(
-          `Fehler: ${((await response.json().catch(() => null)) as { error?: string } | null)?.error ?? response.status}`,
+      for (const [index, next] of urls.entries()) {
+        const prefix = urls.length > 1 ? `Import ${index + 1}/${urls.length}` : "Import läuft";
+        const message = await importUrl(next, prefix).catch(
+          (error: unknown) => `${next}: ${String(error)}`,
         );
-        return;
-      }
-      let title = "";
-      for await (const progress of readEvents(response.body)) {
-        if ("title" in progress && progress.title) title = progress.title;
-        if (progress.step === "error") {
-          setStatus(`Fehler: ${progress.message}`);
-          return;
-        }
-        if (progress.step === "done") {
-          setStatus(null);
-          setUrl("");
-          router.refresh();
-          return;
-        }
-        setStatus(`Import läuft: ${title || url} · ${STEP_LABEL[progress.step]}`);
+        if (message) failed.push({ url: next, message });
       }
     } finally {
       setBusy(false);
+      setUrl(failed.map((f) => f.url).join(", "));
+      setStatus(failed.length > 0 ? `Fehler: ${failed.map((f) => f.message).join(" · ")}` : null);
     }
+  }
+
+  // Runs one import and returns the error message, or null on success.
+  async function importUrl(target: string, prefix: string): Promise<string | null> {
+    setStatus(`${prefix}: ${target} · Start`);
+    const response = await fetch("/api/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: target }),
+    });
+    if (!response.ok || !response.body) {
+      const error = ((await response.json().catch(() => null)) as { error?: string } | null)?.error;
+      return `${target}: ${error ?? response.status}`;
+    }
+    let title = "";
+    for await (const progress of readEvents(response.body)) {
+      if ("title" in progress && progress.title) title = progress.title;
+      if (progress.step === "error") return `${title || target}: ${progress.message}`;
+      if (progress.step === "done") {
+        router.refresh();
+        return null;
+      }
+      setStatus(`${prefix}: ${title || target} · ${STEP_LABEL[progress.step]}`);
+    }
+    return `${title || target}: Verbindung abgebrochen`;
   }
 
   async function dropFile(event: DragEvent) {
@@ -92,10 +104,10 @@ export function ImportPanel({ children }: { children: ReactNode }) {
       onDrop={dropFile}
     >
       <h1>Neuer Song</h1>
-      <form className="import-row" onSubmit={importUrl}>
+      <form className="import-row" onSubmit={importUrls}>
         <input
-          type="url"
-          placeholder="https://www.youtube.com/watch?v=..."
+          type="text"
+          placeholder="YouTube-URLs, mit Komma getrennt"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           disabled={busy}
